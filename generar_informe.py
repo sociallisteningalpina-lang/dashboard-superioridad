@@ -12,7 +12,7 @@ def run_report_generation():
     print("--- INICIANDO GENERACIÓN DE INFORME HTML ---")
     
     try:
-        df = pd.read_excel('Superioridad lactea.xlsx')
+        df = pd.read_excel('Comentarios Campaña.xlsx')
         print("Archivo 'Superioridad lactea.xlsx' cargado con éxito.")
     except FileNotFoundError:
         print("❌ ERROR: No se encontró el archivo 'Superioridad lactea.xlsx'. Asegúrate de que el script de extracción se haya ejecutado primero.")
@@ -272,3 +272,4 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
