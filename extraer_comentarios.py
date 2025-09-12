@@ -236,9 +236,10 @@ def run_extraction():
     existing_cols = [col for col in final_columns if col in df_comments.columns]
     df_comments = df_comments[existing_cols]
 
-    filename = "Superioridad lactea.xlsx"
+    filename = "Comentarios Campaña.xlsx"
     save_to_excel(df_comments, filename)
     logger.info("--- EXTRACTION PROCESS FINISHED ---")
 
 if __name__ == "__main__":
     run_extraction()
+
