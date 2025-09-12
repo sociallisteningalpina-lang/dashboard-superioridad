@@ -1,14 +1,17 @@
 name: Actualizar Dashboard Diario
 
 on:
-  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña "Actions"
+  workflow_dispatch:
   schedule:
-    # Se ejecuta todos los días a las 12:00 UTC (7:00 AM en Bogotá)
     - cron: '0 12 * * *'
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
+    permissions:      # <--- AÑADIR ESTA SECCIÓN
+      contents: write # <--- PARA PERMITIR QUE EL ROBOT HAGA 'GIT PUSH'
+
     steps:
       - name: 1. Descargar el código del repositorio
         uses: actions/checkout@v4
@@ -33,6 +36,5 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git add .
-          # La siguiente línea solo hace "commit" si detecta que hay cambios
           git diff-index --quiet HEAD || git commit -m "📊 Actualización automática del dashboard"
           git push
