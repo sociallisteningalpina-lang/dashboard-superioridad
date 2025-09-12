@@ -14,7 +14,7 @@ def run_report_generation():
     # --- 1. Cargar y procesar los datos ---
     try:
         # Lee el archivo desde la misma carpeta (ruta relativa)
-        df = pd.read_excel('Superioridad lactea.xlsx')
+        df = pd.read_excel('Comentarios Campaña.xlsx')
         print("Archivo 'Superioridad lactea.xlsx' cargado con éxito.")
     except FileNotFoundError:
         print("❌ ERROR: No se encontró el archivo 'Superioridad lactea.xlsx'. Asegúrate de que el script de extracción se haya ejecutado primero.")
@@ -251,3 +251,4 @@ def run_report_generation():
 # Este bloque solo se ejecutará si corres el script directamente en tu PC para probarlo
 if __name__ == "__main__":
     run_report_generation()
+
