@@ -11,28 +11,20 @@ def run_report_generation():
     """
     print("--- INICIANDO GENERACIÓN DE INFORME HTML ---")
     
-    # --- 1. Cargar y procesar los datos ---
     try:
-        # Lee el archivo desde la misma carpeta (ruta relativa)
-        df = pd.read_excel('Comentarios Campaña.xlsx')
+        df = pd.read_excel('Superioridad lactea.xlsx')
         print("Archivo 'Superioridad lactea.xlsx' cargado con éxito.")
     except FileNotFoundError:
         print("❌ ERROR: No se encontró el archivo 'Superioridad lactea.xlsx'. Asegúrate de que el script de extracción se haya ejecutado primero.")
-        return # Detiene la ejecución si no hay datos
+        return
 
-    # Limpieza y transformación
-    df.drop_duplicates(subset=['comment_text', 'created_time_processed'], inplace=True, ignore_index=True)
+    # --- Limpieza Simplificada ---
     df['created_time_processed'] = pd.to_datetime(df['created_time_processed'])
     df['created_time_colombia'] = df['created_time_processed'] - pd.Timedelta(hours=5)
-    df.dropna(subset=['comment_text'], inplace=True)
+    
+    df.dropna(subset=['created_time_colombia', 'comment_text'], inplace=True)
+    df.reset_index(drop=True, inplace=True)
 
-    # <-- LÍNEA CLAVE PARA CORREGIR EL ERROR DE FECHAS INVÁLIDAS -->
-    df.dropna(subset=['created_time_colombia'], inplace=True)
-
-    df = df[df['comment_text'].str.strip() != '']
-    df.reset_index(drop=True, inplace=True) # Reiniciar el índice después de eliminar filas
-
-    # Análisis de Sentimientos y Temas
     print("Analizando sentimientos y temas...")
     sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
     df['sentimiento'] = df['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
@@ -48,7 +40,6 @@ def run_report_generation():
     df['tema'] = df['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
-    # --- 2. Preparar datos para incrustar en HTML ---
     df_for_json = df[['created_time_colombia', 'comment_text', 'sentimiento', 'tema']].copy()
     df_for_json.rename(columns={'created_time_colombia': 'date', 'comment_text': 'comment', 'sentimiento': 'sentiment', 'tema': 'topic'}, inplace=True)
     df_for_json['date'] = df_for_json['date'].dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -57,7 +48,6 @@ def run_report_generation():
     min_date = df['created_time_colombia'].min().strftime('%Y-%m-%d')
     max_date = df['created_time_colombia'].max().strftime('%Y-%m-%d')
 
-    # --- 3. Generar el archivo HTML Dinámico ---
     html_content = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -118,6 +108,9 @@ def run_report_generation():
                     <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
                     <div class="chart-container"><canvas id="topicsChart"></canvas></div>
                     <div class="chart-container full-width"><canvas id="sentimentByTopicChart"></canvas></div>
+                    
+                    <div class="chart-container full-width"><canvas id="dailyChart"></canvas></div>
+                    
                     <div class="chart-container full-width"><canvas id="hourlyChart"></canvas></div>
                 </div>
             </section>
@@ -144,6 +137,10 @@ def run_report_generation():
                     sentiment: new Chart(document.getElementById('sentimentChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Sentimientos' }} }} }} }}),
                     topics: new Chart(document.getElementById('topicsChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: {{ legend: {{ display: false }}, title: {{ display: true, text: 'Temas Principales' }} }} }} }}),
                     sentimentByTopic: new Chart(document.getElementById('sentimentByTopicChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Sentimiento por Tema' }} }} }} }}),
+                    
+                    // NUEVO: Inicialización de la gráfica por día
+                    daily: new Chart(document.getElementById('dailyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Día' }} }} }} }}),
+
                     hourly: new Chart(document.getElementById('hourlyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true, position: 'left', title: {{ display: true, text: 'Comentarios por Hora' }} }}, y1: {{ position: 'right', grid: {{ drawOnChartArea: false }}, title: {{ display: true, text: 'Total Acumulado' }} }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Hora' }} }} }} }})
                 }};
 
@@ -203,20 +200,47 @@ def run_report_generation():
                 }};
 
                 const updateCharts = (data) => {{
+                    // Gráfica de Sentimientos (sin cambios)
                     const sentimentCounts = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
                     charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro'];
                     charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}];
                     charts.sentiment.update();
+
+                    // Gráfica de Temas (sin cambios)
                     const topicCounts = data.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}});
                     const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]);
                     charts.topics.data.labels = sortedTopics.map(d => d[0]);
                     charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}];
                     charts.topics.update();
+                    
+                    // Gráfica de Sentimiento por Tema (sin cambios)
                     const sbtCounts = data.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}});
                     const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro));
                     charts.sentimentByTopic.data.labels = sbtLabels;
                     charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ];
                     charts.sentimentByTopic.update();
+
+                    // --- NUEVO: Lógica para la gráfica por día ---
+                    const dailyCounts = data.reduce((acc, curr) => {{
+                        const day = curr.date.substring(0, 10); // Extrae la parte YYYY-MM-DD
+                        if (!acc[day]) {{
+                            acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }};
+                        }}
+                        acc[day][curr.sentiment]++;
+                        return acc;
+                    }}, {{}});
+                    const sortedDays = Object.keys(dailyCounts).sort();
+                    charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }}));
+                    charts.daily.data.datasets = [
+                        {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }},
+                        {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }},
+                        {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }}
+                    ];
+                    charts.daily.update();
+                    // --- FIN Lógica por día ---
+
+
+                    // Gráfica por hora (sin cambios)
                     const hourlyCounts = data.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}});
                     const sortedHours = Object.keys(hourlyCounts).sort();
                     let cumulative = 0;
@@ -237,9 +261,7 @@ def run_report_generation():
     </body>
     </html>
     """
-
-    # --- 4. Guardar el archivo HTML final ---
-    # Guarda el archivo como 'index.html' para que sea compatible con GitHub Pages
+    
     report_filename = 'index.html'
     with open(report_filename, 'w', encoding='utf-8') as f:
         f.write(html_content)
@@ -248,7 +270,5 @@ def run_report_generation():
     print("--- GENERACIÓN DE INFORME TERMINADA ---")
 
 
-# Este bloque solo se ejecutará si corres el script directamente en tu PC para probarlo
 if __name__ == "__main__":
     run_report_generation()
-
