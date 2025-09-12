@@ -14,7 +14,7 @@ def run_report_generation():
     # --- 1. Cargar y procesar los datos ---
     try:
         # Lee el archivo desde la misma carpeta (ruta relativa)
-        df = pd.read_excel('Comentarios Campaña.xlsx')
+        df = pd.read_excel('Superioridad lactea.xlsx')
         print("Archivo 'Superioridad lactea.xlsx' cargado con éxito.")
     except FileNotFoundError:
         print("❌ ERROR: No se encontró el archivo 'Superioridad lactea.xlsx'. Asegúrate de que el script de extracción se haya ejecutado primero.")
@@ -22,11 +22,15 @@ def run_report_generation():
 
     # Limpieza y transformación
     df.drop_duplicates(subset=['comment_text', 'created_time_processed'], inplace=True, ignore_index=True)
-    # Asegurarse de que la columna es datetime
     df['created_time_processed'] = pd.to_datetime(df['created_time_processed'])
     df['created_time_colombia'] = df['created_time_processed'] - pd.Timedelta(hours=5)
     df.dropna(subset=['comment_text'], inplace=True)
+
+    # <-- LÍNEA CLAVE PARA CORREGIR EL ERROR DE FECHAS INVÁLIDAS -->
+    df.dropna(subset=['created_time_colombia'], inplace=True)
+
     df = df[df['comment_text'].str.strip() != '']
+    df.reset_index(drop=True, inplace=True) # Reiniciar el índice después de eliminar filas
 
     # Análisis de Sentimientos y Temas
     print("Analizando sentimientos y temas...")
@@ -189,7 +193,6 @@ def run_report_generation():
 
                 const updateCommentsList = (data) => {{
                     const sentimentToCss = {{ 'Positivo': 'positive', 'Negativo': 'negative', 'Neutro': 'neutral' }};
-                    // Mostrar los comentarios en orden cronológico inverso (el más nuevo primero)
                     const listHtml = data.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200).map((d, i) => {{
                         const escapedComment = d.comment.replace(/</g, "&lt;").replace(/>/g, "&gt;");
                         return `<div class="comment-item comment-${{sentimentToCss[d.sentiment]}}">
@@ -204,30 +207,22 @@ def run_report_generation():
                     charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro'];
                     charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}];
                     charts.sentiment.update();
-
                     const topicCounts = data.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}});
                     const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]);
                     charts.topics.data.labels = sortedTopics.map(d => d[0]);
                     charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}];
                     charts.topics.update();
-
                     const sbtCounts = data.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}});
                     const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro));
                     charts.sentimentByTopic.data.labels = sbtLabels;
                     charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ];
                     charts.sentimentByTopic.update();
-
                     const hourlyCounts = data.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}});
                     const sortedHours = Object.keys(hourlyCounts).sort();
                     let cumulative = 0;
                     const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }});
                     charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }}));
-                    charts.hourly.data.datasets = [ 
-                        {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, 
-                        {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, 
-                        {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, 
-                        {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} 
-                    ];
+                    charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ];
                     charts.hourly.update();
                 }};
 
