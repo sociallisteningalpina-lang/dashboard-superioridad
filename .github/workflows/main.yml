@@ -1,0 +1,38 @@
+name: Actualizar Dashboard Diario
+
+on:
+  workflow_dispatch: # Permite ejecutarlo manualmente desde la pestaña "Actions"
+  schedule:
+    # Se ejecuta todos los días a las 12:00 UTC (7:00 AM en Bogotá)
+    - cron: '0 12 * * *'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 1. Descargar el código del repositorio
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+
+      - name: 3. Instalar las librerías necesarias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 4. Ejecutar el script principal para generar los archivos
+        env:
+          APIFY_TOKEN: ${{ secrets.APIFY_TOKEN }}
+        run: python main.py
+
+      - name: 5. Subir los archivos actualizados al repositorio
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          # La siguiente línea solo hace "commit" si detecta que hay cambios
+          git diff-index --quiet HEAD || git commit -m "📊 Actualización automática del dashboard"
+          git push
