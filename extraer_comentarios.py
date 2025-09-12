@@ -12,26 +12,16 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # --- PARÁMETROS DE CONFIGURACIÓN ---
-# El token se lee de forma segura desde las variables de entorno (GitHub Secrets)
 APIFY_TOKEN = os.environ.get("APIFY_TOKEN")
-SOLO_PRIMER_POST = False  # Cambiar a False para procesar todas las URLs
+SOLO_PRIMER_POST = False
 
 # LISTA DE URLs A PROCESAR
 URLS_A_PROCESAR = [
-    # Instagram and Facebook URLs
     "https://www.instagram.com/p/DOd_xzvAM_W/#advertiser",
     "https://www.facebook.com/100064867445065/posts/1217384173767153/?dco_ad_token=AaoUMSR4O0Jn0kI9WJNgACCt818bH-qdkhOz0IzQxlGq3C6LvYpk-Hul05udjhZh7O2IEZtYs9sGUyhI&dco_ad_id=120234933628460640",
     "https://www.facebook.com/100064867445065/posts/1217383833767187/?dco_ad_token=AaoI_1TcTGLFpUm7WcXykrP4fE3pj5Rq_cZiUmubnPAj2HghH9agXsDDsIgxAbIUjgyyQP8CAV2U0B9Z&dco_ad_id=120234933289600640",
     "https://www.instagram.com/p/DOeAYHHABLU/#advertiser",
-    
-    # TikTok URLs
-    "https://www.tiktok.com/@user369347738/video/7548206070330559762?_r=1&_t=ZS-8zeMhsrP2tb",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366028664072?_r=1&_t=ZS-8zeO4aLLKtz",
-    "https://www.tiktok.com/@user369347738/video/7548206069886061831?_r=1&_t=ZS-8zeO6GZn8iN",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548918352757001490?_r=1&_t=ZS-8zeO9hmWXF2",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366343171346?_r=1&_t=ZS-8zeOAge5FPm",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890371032419591?_r=1&_t=ZS-8zeOBRN6iBE",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548872989274672401?_r=1&_t=ZS-8zeOEQFvD1j"
+    "https://www.tiktok.com/@user369347738/video/7548206070330559762?_r=1&_t=ZS-8zeMhsrP2tb"
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -47,18 +37,6 @@ CAMPAIGN_INFO = {
 class SocialMediaScraper:
     def __init__(self, apify_token):
         self.client = ApifyClient(apify_token)
-
-    def debug_all_fields(self, items, platform):
-        """Muestra todos los campos disponibles en los resultados para depuración."""
-        logger.info(f"--- DEBUGGING ALL FIELDS FOR {platform} ---")
-        if not items:
-            logger.warning("No items found to debug.")
-            return
-        sample_item = items[0]
-        logger.info(f"Sample item keys: {list(sample_item.keys())}")
-        for key, value in sample_item.items():
-            logger.info(f"  - {key}: {repr(value)[:100]} (type: {type(value).__name__})")
-        logger.info("--- END DEBUG ---")
 
     def detect_platform(self, url):
         if pd.isna(url) or not url: return None
@@ -95,7 +73,7 @@ class SocialMediaScraper:
                 return None
             time.sleep(10)
 
-    def scrape_facebook_comments(self, url, max_comments=200, campaign_info=None, post_number=1):
+    def scrape_facebook_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
             logger.info(f"Processing Facebook Post {post_number}: {url}")
             run_input = {"startUrls": [{"url": self.clean_url(url)}], "maxComments": max_comments}
@@ -111,7 +89,7 @@ class SocialMediaScraper:
             logger.error(f"Fatal error in scrape_facebook_comments: {e}")
             return []
 
-    def scrape_instagram_comments(self, url, max_comments=200, campaign_info=None, post_number=1):
+    def scrape_instagram_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
             logger.info(f"Processing Instagram Post {post_number}: {url}")
             run_input = {"directUrls": [url], "resultsType": "comments", "resultsLimit": max_comments}
@@ -127,7 +105,7 @@ class SocialMediaScraper:
             logger.error(f"Fatal error in scrape_instagram_comments: {e}")
             return []
 
-    def scrape_tiktok_comments(self, url, max_comments=200, campaign_info=None, post_number=1):
+    def scrape_tiktok_comments(self, url, max_comments=500, campaign_info=None, post_number=1):
         try:
             logger.info(f"Processing TikTok Post {post_number}: {url}")
             run_input = {"postURLs": [self.clean_url(url)], "maxCommentsPerPost": max_comments}
@@ -145,9 +123,15 @@ class SocialMediaScraper:
 
     def _process_facebook_results(self, items, url, post_number, campaign_info):
         processed = []
-        possible_date_fields = ['createdTime', 'timestamp']
+        # <-- CORRECCIÓN: Usando tu lista de campos de fecha más completa
+        possible_date_fields = ['createdTime', 'timestamp', 'publishedTime', 'date', 'createdAt', 'publishedAt']
         for comment in items:
-            created_time = next((comment.get(f) for f in possible_date_fields if comment.get(f)), None)
+            # <-- CORRECCIÓN: Usando tu bucle for original para máxima compatibilidad
+            created_time = None
+            for field in possible_date_fields:
+                if field in comment and comment[field]:
+                    created_time = comment[field]
+                    break
             comment_data = {**campaign_info, 'post_url': url, 'post_number': post_number, 'platform': 'Facebook', 'author_name': self.fix_encoding(comment.get('authorName')), 'author_url': comment.get('authorUrl'), 'comment_text': self.fix_encoding(comment.get('text')), 'created_time': created_time, 'likes_count': comment.get('likesCount', 0), 'replies_count': comment.get('repliesCount', 0), 'is_reply': False, 'parent_comment_id': None, 'created_time_raw': str(comment)}
             processed.append(comment_data)
         logger.info(f"Processed {len(processed)} Facebook comments.")
@@ -155,11 +139,17 @@ class SocialMediaScraper:
 
     def _process_instagram_results(self, items, url, post_number, campaign_info):
         processed = []
-        possible_date_fields = ['timestamp', 'createdAt']
+        # <-- CORRECCIÓN: Usando tu lista de campos de fecha más completa
+        possible_date_fields = ['timestamp', 'createdTime', 'publishedAt', 'date', 'createdAt', 'taken_at']
         for item in items:
             comments_list = item.get('comments', [item]) if item.get('comments') is not None else [item]
             for comment in comments_list:
-                created_time = next((comment.get(f) for f in possible_date_fields if comment.get(f)), None)
+                # <-- CORRECCIÓN: Usando tu bucle for original
+                created_time = None
+                for field in possible_date_fields:
+                    if field in comment and comment[field]:
+                        created_time = comment[field]
+                        break
                 author = comment.get('ownerUsername', '')
                 comment_data = {**campaign_info, 'post_url': url, 'post_number': post_number, 'platform': 'Instagram', 'author_name': self.fix_encoding(author), 'author_url': f"https://instagram.com/{author}", 'comment_text': self.fix_encoding(comment.get('text')), 'created_time': created_time, 'likes_count': comment.get('likesCount', 0), 'replies_count': 0, 'is_reply': False, 'parent_comment_id': None, 'created_time_raw': str(comment)}
                 processed.append(comment_data)
@@ -182,10 +172,6 @@ def save_to_excel(df, filename):
             if 'post_number' in df.columns:
                 summary = df.groupby(['post_number', 'platform', 'post_url']).agg(Total_Comentarios=('comment_text', 'count'), Total_Likes=('likes_count', 'sum')).reset_index()
                 summary.to_excel(writer, sheet_name='Resumen_Posts', index=False)
-            for sheet_name in writer.sheets:
-                for column in writer.sheets[sheet_name].columns:
-                    max_length = max(len(str(cell.value)) for cell in column if cell.value)
-                    writer.sheets[sheet_name].column_dimensions[column[0].column_letter].width = min(max_length + 2, 50)
         logger.info(f"Excel file saved successfully: {filename}")
         return True
     except Exception as e:
@@ -195,6 +181,7 @@ def save_to_excel(df, filename):
 def process_datetime_columns(df):
     if 'created_time' not in df.columns: return df
     logger.info("Processing datetime columns...")
+    # Intenta convertir todo tipo de formatos (timestamps, ISO, etc.) a un datetime unificado
     df['created_time_processed'] = pd.to_datetime(df['created_time'], errors='coerce', utc=True, unit='s')
     mask = df['created_time_processed'].isna()
     df.loc[mask, 'created_time_processed'] = pd.to_datetime(df.loc[mask, 'created_time'], errors='coerce', utc=True)
@@ -205,7 +192,6 @@ def process_datetime_columns(df):
     return df
 
 def run_extraction():
-    """Función principal que orquesta el proceso de scraping."""
     logger.info("--- STARTING COMMENT EXTRACTION PROCESS ---")
     if not APIFY_TOKEN:
         logger.error("APIFY_TOKEN not found in environment variables. Aborting.")
@@ -225,11 +211,11 @@ def run_extraction():
         platform = scraper.detect_platform(url)
         comments = []
         if platform == 'facebook':
-            comments = scraper.scrape_facebook_comments(url, max_comments=500, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_facebook_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
         elif platform == 'instagram':
-            comments = scraper.scrape_instagram_comments(url, max_comments=500, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_instagram_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
         elif platform == 'tiktok':
-            comments = scraper.scrape_tiktok_comments(url, max_comments=500, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
+            comments = scraper.scrape_tiktok_comments(url, campaign_info=CAMPAIGN_INFO, post_number=post_counter)
         else:
             logger.warning(f"Unknown platform for URL: {url}")
         
@@ -250,10 +236,9 @@ def run_extraction():
     existing_cols = [col for col in final_columns if col in df_comments.columns]
     df_comments = df_comments[existing_cols]
 
-    filename = "Comentarios Campaña.xlsx"
+    filename = "Superioridad lactea.xlsx"
     save_to_excel(df_comments, filename)
     logger.info("--- EXTRACTION PROCESS FINISHED ---")
 
-# Este bloque solo se ejecutará si corres el script directamente en tu PC
 if __name__ == "__main__":
     run_extraction()
