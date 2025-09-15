@@ -12,11 +12,11 @@ def run_report_generation():
     print("--- INICIANDO GENERACIÓN DE INFORME HTML ---")
     
     try:
-        # Asegúrate de que el nombre del archivo aquí coincida con el que genera tu script de extracción
-            df = pd.read_excel('Comentarios Campaña.xlsx')
-        print("Archivo de comentarios cargado con éxito.")
+        # Asegúrate de que este nombre coincida con el que genera tu script de extracción
+        df = pd.read_excel('Comentarios Campaña.xlsx')
+        print("Archivo 'Comentarios Campaña.xlsx' cargado con éxito.")
     except FileNotFoundError:
-        print("❌ ERROR: No se encontró el archivo Excel. Asegúrate de que el script de extracción se haya ejecutado primero.")
+        print("❌ ERROR: No se encontró el archivo 'Comentarios Campaña.xlsx'. Asegúrate de que el script de extracción se haya ejecutado primero.")
         return
 
     # --- Limpieza Simplificada ---
@@ -41,7 +41,6 @@ def run_report_generation():
     df['tema'] = df['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
-    # --- NUEVO: Asegurarnos de pasar la columna 'platform' al JSON ---
     df_for_json = df[['created_time_colombia', 'comment_text', 'sentimiento', 'tema', 'platform']].copy()
     df_for_json.rename(columns={'created_time_colombia': 'date', 'comment_text': 'comment', 'sentimiento': 'sentiment', 'tema': 'topic'}, inplace=True)
     df_for_json['date'] = df_for_json['date'].dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -114,7 +113,6 @@ def run_report_generation():
                 <h2 class="section-title">Análisis General</h2>
                 <div class="charts-grid">
                     <div class="chart-container full-width"><canvas id="platformChart"></canvas></div>
-
                     <div class="chart-container"><canvas id="sentimentChart"></canvas></div>
                     <div class="chart-container"><canvas id="topicsChart"></canvas></div>
                     <div class="chart-container full-width"><canvas id="sentimentByTopicChart"></canvas></div>
@@ -138,12 +136,10 @@ def run_report_generation():
                 const startTimeInput = document.getElementById('startTime');
                 const endDateInput = document.getElementById('endDate');
                 const endTimeInput = document.getElementById('endTime');
-                const platformFilter = document.getElementById('platformFilter'); // NUEVO
+                const platformFilter = document.getElementById('platformFilter');
 
                 const charts = {{
-                    // NUEVO: Inicialización de la gráfica por plataforma
                     platform: new Chart(document.getElementById('platformChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Comentarios por Red Social y Sentimiento' }} }} }} }}),
-
                     sentiment: new Chart(document.getElementById('sentimentChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Sentimientos' }} }} }} }}),
                     topics: new Chart(document.getElementById('topicsChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: {{ legend: {{ display: false }}, title: {{ display: true, text: 'Temas Principales' }} }} }} }}),
                     sentimentByTopic: new Chart(document.getElementById('sentimentByTopicChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Sentimiento por Tema' }} }} }} }}),
@@ -151,7 +147,6 @@ def run_report_generation():
                     hourly: new Chart(document.getElementById('hourlyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true, position: 'left', title: {{ display: true, text: 'Comentarios por Hora' }} }}, y1: {{ position: 'right', grid: {{ drawOnChartArea: false }}, title: {{ display: true, text: 'Total Acumulado' }} }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Hora' }} }} }} }})
                 }};
 
-                // NUEVO: Lógica de filtrado actualizada
                 const updateDashboard = () => {{
                     const startFilter = startDateInput.value + 'T' + startTimeInput.value + ':00';
                     const endFilter = endDateInput.value + 'T' + endTimeInput.value + ':59';
@@ -191,7 +186,6 @@ def run_report_generation():
                 }};
 
                 const updateCharts = (data) => {{
-                    // --- NUEVO: Lógica para la gráfica por plataforma ---
                     const platformCounts = data.reduce((acc, curr) => {{
                         const platform = curr.platform || 'Desconocido';
                         if (!acc[platform]) {{ acc[platform] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }}
@@ -207,7 +201,6 @@ def run_report_generation():
                     ];
                     charts.platform.update();
                     
-                    // (Lógica de las otras gráficas no cambia)
                     const sentimentCounts = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
                     charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro'];
                     charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}];
@@ -249,7 +242,7 @@ def run_report_generation():
                 startTimeInput.addEventListener('change', updateDashboard);
                 endDateInput.addEventListener('change', updateDashboard);
                 endTimeInput.addEventListener('change', updateDashboard);
-                platformFilter.addEventListener('change', updateDashboard); // NUEVO
+                platformFilter.addEventListener('change', updateDashboard);
                 
                 updateDashboard();
             }});
