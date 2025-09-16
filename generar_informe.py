@@ -67,7 +67,7 @@ def run_report_generation():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Panel Interactivo de Campañas</title>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.0/wordcloud2.min.js"></script>
+        <script src="https://unpkg.com/wordcloud@2.6.0/src/wordcloud2.js"></script>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             body {{ font-family: 'Arial', sans-serif; background: #f4f7f6; }}
@@ -95,7 +95,8 @@ def run_report_generation():
             .charts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }}
             .chart-container {{ position: relative; height: 400px; }}
             .chart-container.full-width {{ grid-column: 1 / -1; }}
-            .wordcloud-title {{ text-align: center; margin-bottom: 10px; font-size: 1.2em; }} /* NUEVO */
+            .wordcloud-title {{ text-align: center; margin-bottom: 10px; font-size: 1.2em; }}
+            #negativeWordCloud, #positiveWordCloud {{ width: 100%; height: 100%; }}
             .comment-item {{ margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid; word-wrap: break-word; }}
             .comment-positive {{ border-left-color: #28a745; background: #f0fff4; }} .comment-negative {{ border-left-color: #dc3545; background: #fff5f5; }} .comment-neutral {{ border-left-color: #ffc107; background: #fffbeb; }}
             @media (max-width: 900px) {{ .charts-grid {{ grid-template-columns: 1fr; }} }}
@@ -154,15 +155,12 @@ def run_report_generation():
             document.addEventListener('DOMContentLoaded', () => {{
                 const dataStoreElement = document.getElementById('data-store');
                 const allData = JSON.parse(dataStoreElement.textContent);
-
-                // Referencias a elementos del DOM
                 const startDateInput = document.getElementById('startDate');
                 const startTimeInput = document.getElementById('startTime');
                 const endDateInput = document.getElementById('endDate');
                 const endTimeInput = document.getElementById('endTime');
                 const platformFilter = document.getElementById('platformFilter');
                 const postFilter = document.getElementById('postFilter');
-
                 const charts = {{
                     postCount: new Chart(document.getElementById('postCountChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Pautas por Red Social' }} }} }} }}),
                     sentiment: new Chart(document.getElementById('sentimentChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Sentimientos' }} }} }} }}),
@@ -171,32 +169,11 @@ def run_report_generation():
                     daily: new Chart(document.getElementById('dailyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Día' }} }} }} }}),
                     hourly: new Chart(document.getElementById('hourlyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true, position: 'left', title: {{ display: true, text: 'Comentarios por Hora' }} }}, y1: {{ position: 'right', grid: {{ drawOnChartArea: false }}, title: {{ display: true, text: 'Total Acumulado' }} }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Hora' }} }} }} }})
                 }};
-
-                const updateDashboard = () => {{
-                    const startFilter = startDateInput.value + 'T' + startTimeInput.value + ':00';
-                    const endFilter = endDateInput.value + 'T' + endTimeInput.value + ':59';
-                    const selectedPlatform = platformFilter.value;
-                    const selectedPost = postFilter.value;
-
-                    let filteredData = allData.filter(d => d.date >= startFilter && d.date <= endFilter);
-
-                    if (selectedPost !== 'Todas') {{
-                        filteredData = filteredData.filter(d => d.post_url === selectedPost);
-                    }} else if (selectedPlatform !== 'Todas') {{
-                        filteredData = filteredData.filter(d => d.platform === selectedPlatform);
-                    }}
-                    
-                    updateStats(filteredData);
-                    updateCharts(allData, filteredData);
-                    updateCommentsList(filteredData);
-                    updateWordClouds(filteredData); // NUEVO
-                }};
                 
-                // --- NUEVO: Toda la lógica para las nubes de palabras ---
-                const spanishStopwords = new Set(['de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se', 'las', 'por', 'un', 'para', 'con', 'no', 'una', 'su', 'al', 'lo', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o', 'este', 'ha', 'me', 'si', 'sin', 'sobre', 'es', 'porque', 'qué', 'cuando', 'muy', 'desde', 'mi', 'eso', 'esto', 'son', 'mis', 'ese', 'yo', 'e', 'hasta', 'puedo', 'esa', 'les']);
+                const spanishStopwords = new Set(['de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se', 'las', 'por', 'un', 'para', 'con', 'no', 'una', 'su', 'al', 'lo', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o', 'este', 'ha', 'me', 'si', 'sin', 'sobre', 'es', 'porque', 'qué', 'cuando', 'muy', 'desde', 'mi', 'eso', 'esto', 'son', 'mis', 'ese', 'yo', 'e', 'hasta', 'puedo', 'esa', 'les', 'he', 'sido', 'han', 'hay', 'ser', 'delo', 'todo', 'todos']);
                 const processTextForWordCloud = (text) => {{
                     const wordCounts = {{}};
-                    const words = text.toLowerCase().match(/\b\w+/g) || [];
+                    const words = text.toLowerCase().match(/[a-záéíóúñ]+/g) || [];
                     words.forEach(word => {{
                         if (!spanishStopwords.has(word) && word.length > 2) {{
                             wordCounts[word] = (wordCounts[word] || 0) + 1;
@@ -206,113 +183,44 @@ def run_report_generation():
                 }};
 
                 const updateWordClouds = (data) => {{
+                    if (typeof WordCloud !== 'function') {{
+                        console.error("Librería WordCloud no está lista.");
+                        return;
+                    }}
                     let positiveText = data.filter(d => d.sentiment === 'Positivo').map(d => d.comment).join(' ');
                     let negativeText = data.filter(d => d.sentiment === 'Negativo').map(d => d.comment).join(' ');
-
                     const positiveWordList = processTextForWordCloud(positiveText);
                     const negativeWordList = processTextForWordCloud(negativeText);
-                    
-                    const options = {{
-                        list: [],
-                        gridSize: Math.round(16 * document.getElementById('negativeWordCloud').width / 1024),
-                        weightFactor: (size) => Math.pow(size, 1.5) * document.getElementById('negativeWordCloud').width / 512,
-                        fontFamily: 'Arial, sans-serif',
-                        minSize: 10,
-                        backgroundColor: '#ffffff'
-                    }};
-
-                    options.list = negativeWordList;
+                    const options = {{ list: [], gridSize: 8, weightFactor: 4, fontFamily: 'Arial, sans-serif', minSize: 10, backgroundColor: '#ffffff', drawOutOfBound: false, }};
+                    options.list = negativeWordList.length > 0 ? negativeWordList : [['Sin datos', 1]];
                     options.color = '#dc3545';
                     WordCloud(document.getElementById('negativeWordCloud'), options);
-                    
-                    options.list = positiveWordList;
+                    options.list = positiveWordList.length > 0 ? positiveWordList : [['Sin datos', 1]];
                     options.color = '#28a745';
                     WordCloud(document.getElementById('positiveWordCloud'), options);
                 }};
-                // --- FIN Lógica de nubes de palabras ---
 
-                // (El resto de las funciones de actualización no cambian)
-                const updateStats = (data) => {{
-                    const total = data.length;
-                    const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
-                    const pos = sentiments['Positivo'] || 0;
-                    const neg = sentiments['Negativo'] || 0;
-                    const neu = sentiments['Neutro'] || 0;
-                    document.getElementById('stats-grid').innerHTML = `
-                        <div class="stat-card total"><div class="stat-number total-text">${{total}}</div><div>Total Comentarios</div></div>
-                        <div class="stat-card positive"><div class="stat-number positive-text">${{pos}}</div><div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div></div>
-                        <div class="stat-card negative"><div class="stat-number negative-text">${{neg}}</div><div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div></div>
-                        <div class="stat-card neutral"><div class="stat-number neutral-text">${{neu}}</div><div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div></div>
-                    `;
-                }};
-
-                const updateCommentsList = (data) => {{
-                    const sentimentToCss = {{ 'Positivo': 'positive', 'Negativo': 'negative', 'Neutro': 'neutral' }};
-                    const listHtml = data.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200).map((d, i) => {{
-                        const escapedComment = d.comment.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                        return `<div class="comment-item comment-${{sentimentToCss[d.sentiment]}}"><strong>[${{d.sentiment.toUpperCase()}}] (Tema: ${{d.topic}})</strong> - ${{escapedComment}}</div>`;
-                    }}).join('');
-                    document.getElementById('comments-list').innerHTML = listHtml || "<p style='text-align:center;'>No hay comentarios en este rango.</p>";
-                }};
-
-                const updateCharts = (totalData, filteredData) => {{
-                    const postCounts = totalData.reduce((acc, curr) => {{
-                        const platform = curr.platform || 'Desconocido';
-                        if (!acc[platform]) {{ acc[platform] = new Set(); }}
-                        acc[platform].add(curr.post_url);
-                        return acc;
-                    }}, {{}});
-                    const postCountLabels = Object.keys(postCounts);
-                    charts.postCount.data.labels = postCountLabels;
-                    charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p].size), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}];
-                    charts.postCount.update();
-                    
-                    const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
-                    charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro'];
-                    charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}];
-                    charts.sentiment.update();
-
-                    const topicCounts = filteredData.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}});
-                    const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]);
-                    charts.topics.data.labels = sortedTopics.map(d => d[0]);
-                    charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}];
-                    charts.topics.update();
-                    
-                    const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}});
-                    const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro));
-                    charts.sentimentByTopic.data.labels = sbtLabels;
-                    charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ];
-                    charts.sentimentByTopic.update();
-
-                    const dailyCounts = filteredData.reduce((acc, curr) => {{
-                        const day = curr.date.substring(0, 10);
-                        if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }}
-                        acc[day][curr.sentiment]++;
-                        return acc;
-                    }}, {{}});
-                    const sortedDays = Object.keys(dailyCounts).sort();
-                    charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }}));
-                    charts.daily.data.datasets = [ {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} ];
-                    charts.daily.update();
-
-                    const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}});
-                    const sortedHours = Object.keys(hourlyCounts).sort();
-                    let cumulative = 0;
-                    const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }});
-                    charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }}));
-                    charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ];
-                    charts.hourly.update();
-                }};
-
-                const updatePostFilterOptions = () => {{
+                const updateDashboard = () => {{
+                    const startFilter = startDateInput.value + 'T' + startTimeInput.value + ':00';
+                    const endFilter = endDateInput.value + 'T' + endTimeInput.value + ':59';
                     const selectedPlatform = platformFilter.value;
-                    const currentPostSelection = postFilter.value;
-                    const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s));
-                    let postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform);
-                    postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>';
-                    postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`; }});
-                    if (postsToShow.some(p => p.url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} else {{ postFilter.value = 'Todas'; }}
+                    const selectedPost = postFilter.value;
+                    let filteredData = allData.filter(d => d.date >= startFilter && d.date <= endFilter);
+                    if (selectedPost !== 'Todas') {{
+                        filteredData = filteredData.filter(d => d.post_url === selectedPost);
+                    }} else if (selectedPlatform !== 'Todas') {{
+                        filteredData = filteredData.filter(d => d.platform === selectedPlatform);
+                    }}
+                    updateStats(filteredData);
+                    updateCharts(allData, filteredData);
+                    updateCommentsList(filteredData);
+                    updateWordClouds(filteredData);
                 }};
+                
+                const updateStats = (data) => {{ const total = data.length; const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); const pos = sentiments['Positivo'] || 0; const neg = sentiments['Negativo'] || 0; const neu = sentiments['Neutro'] || 0; document.getElementById('stats-grid').innerHTML = `<div class="stat-card total"><div class="stat-number total-text">${{total}}</div><div>Total Comentarios</div></div><div class="stat-card positive"><div class="stat-number positive-text">${{pos}}</div><div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div></div><div class="stat-card negative"><div class="stat-number negative-text">${{neg}}</div><div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div></div><div class="stat-card neutral"><div class="stat-number neutral-text">${{neu}}</div><div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div></div>`; }};
+                const updateCommentsList = (data) => {{ const sentimentToCss = {{ 'Positivo': 'positive', 'Negativo': 'negative', 'Neutro': 'neutral' }}; const listHtml = data.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200).map((d, i) => {{ const escapedComment = d.comment.replace(/</g, "&lt;").replace(/>/g, "&gt;"); return `<div class="comment-item comment-${{sentimentToCss[d.sentiment]}}"><strong>[${{d.sentiment.toUpperCase()}}] (Tema: ${{d.topic}})</strong> - ${{escapedComment}}</div>`; }}).join(''); document.getElementById('comments-list').innerHTML = listHtml || "<p style='text-align:center;'>No hay comentarios en este rango.</p>"; }};
+                const updateCharts = (totalData, filteredData) => {{ const postCounts = totalData.reduce((acc, curr) => {{ const platform = curr.platform || 'Desconocido'; if (!acc[platform]) {{ acc[platform] = new Set(); }} acc[platform].add(curr.post_url); return acc; }}, {{}}); const postCountLabels = Object.keys(postCounts); charts.postCount.data.labels = postCountLabels; charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p].size), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}]; charts.postCount.update(); const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro']; charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}]; charts.sentiment.update(); const topicCounts = filteredData.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}}); const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]); charts.topics.data.labels = sortedTopics.map(d => d[0]); charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}]; charts.topics.update(); const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}}); const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro)); charts.sentimentByTopic.data.labels = sbtLabels; charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ]; charts.sentimentByTopic.update(); const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }} acc[day][curr.sentiment]++; return acc; }}, {{}}); const sortedDays = Object.keys(dailyCounts).sort(); charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }})); charts.daily.data.datasets = [ {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} ]; charts.daily.update(); const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}}); const sortedHours = Object.keys(hourlyCounts).sort(); let cumulative = 0; const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }}); charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }})); charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ]; charts.hourly.update(); }};
+                const updatePostFilterOptions = () => {{ const selectedPlatform = platformFilter.value; const currentPostSelection = postFilter.value; const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s)); let postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform); postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>'; postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`; }}); if (postsToShow.some(p => p.url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} else {{ postFilter.value = 'Todas'; }} }};
 
                 platformFilter.addEventListener('change', () => {{ updatePostFilterOptions(); updateDashboard(); }});
                 postFilter.addEventListener('change', updateDashboard);
