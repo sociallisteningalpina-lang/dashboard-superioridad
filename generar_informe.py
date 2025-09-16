@@ -24,14 +24,12 @@ def run_report_generation():
     df.dropna(subset=['created_time_colombia', 'comment_text', 'post_url'], inplace=True)
     df.reset_index(drop=True, inplace=True)
 
-    # --- Crear etiquetas legibles para cada pauta ---
     unique_posts = df[['post_url', 'platform']].drop_duplicates().reset_index(drop=True)
     post_labels = {}
     for index, row in unique_posts.iterrows():
         post_labels[row['post_url']] = f"Pauta {index + 1} ({row['platform']})"
     df['post_label'] = df['post_url'].map(post_labels)
 
-    # --- Análisis de Sentimientos y Temas ---
     print("Analizando sentimientos y temas...")
     sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
     df['sentimiento'] = df['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
@@ -46,7 +44,6 @@ def run_report_generation():
     df['tema'] = df['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
-    # --- Preparar datos para el JSON ---
     df_for_json = df[['created_time_colombia', 'comment_text', 'sentimiento', 'tema', 'platform', 'post_url', 'post_label']].copy()
     df_for_json.rename(columns={'created_time_colombia': 'date', 'comment_text': 'comment', 'sentimiento': 'sentiment', 'tema': 'topic'}, inplace=True)
     df_for_json['date'] = df_for_json['date'].dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -55,18 +52,13 @@ def run_report_generation():
     min_date = df['created_time_colombia'].min().strftime('%Y-%m-%d')
     max_date = df['created_time_colombia'].max().strftime('%Y-%m-%d')
     
-    # --- Generar HTML para filtros y listas ---
     post_filter_options = '<option value="Todas">Ver Todas las Pautas</option>'
-    for url, label in post_labels.items():
-        post_filter_options += f'<option value="{url}">{label}</option>'
-    
-    # <-- CORRECCIÓN: Generar hipervínculos en lugar de URLs completas -->
     post_links_html = '<ul>'
     for url, label in post_labels.items():
+        post_filter_options += f'<option value="{url}">{label}</option>'
         post_links_html += f'<li><strong>{label}:</strong> <a href="{url}" target="_blank">Ver Pauta</a></li>'
     post_links_html += '</ul>'
 
-    # --- Generar el archivo HTML Dinámico ---
     html_content = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -75,6 +67,7 @@ def run_report_generation():
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Panel Interactivo de Campañas</title>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/wordcloud2.js/1.1.0/wordcloud2.min.js"></script>
         <style>
             * {{ margin: 0; padding: 0; box-sizing: border-box; }}
             body {{ font-family: 'Arial', sans-serif; background: #f4f7f6; }}
@@ -102,6 +95,7 @@ def run_report_generation():
             .charts-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; }}
             .chart-container {{ position: relative; height: 400px; }}
             .chart-container.full-width {{ grid-column: 1 / -1; }}
+            .wordcloud-title {{ text-align: center; margin-bottom: 10px; font-size: 1.2em; }} /* NUEVO */
             .comment-item {{ margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid; word-wrap: break-word; }}
             .comment-positive {{ border-left-color: #28a745; background: #f0fff4; }} .comment-negative {{ border-left-color: #dc3545; background: #fff5f5; }} .comment-neutral {{ border-left-color: #ffc107; background: #fffbeb; }}
             @media (max-width: 900px) {{ .charts-grid {{ grid-template-columns: 1fr; }} }}
@@ -142,6 +136,14 @@ def run_report_generation():
                 </div>
             </section>
             
+            <div class="card charts-section">
+                <h2 class="section-title">☁️ Nubes de Palabras Dinámicas</h2>
+                <div class="charts-grid">
+                    <div class="chart-container"><h3 class="wordcloud-title negative-text">Términos Negativos</h3><canvas id="negativeWordCloud"></canvas></div>
+                    <div class="chart-container"><h3 class="wordcloud-title positive-text">Términos Positivos</h3><canvas id="positiveWordCloud"></canvas></div>
+                </div>
+            </div>
+
             <div class="card comments-section">
                 <h2 class="section-title">💬 Comentarios Filtrados</h2>
                 <div id="comments-list"></div>
@@ -153,6 +155,7 @@ def run_report_generation():
                 const dataStoreElement = document.getElementById('data-store');
                 const allData = JSON.parse(dataStoreElement.textContent);
 
+                // Referencias a elementos del DOM
                 const startDateInput = document.getElementById('startDate');
                 const startTimeInput = document.getElementById('startTime');
                 const endDateInput = document.getElementById('endDate');
@@ -186,8 +189,49 @@ def run_report_generation():
                     updateStats(filteredData);
                     updateCharts(allData, filteredData);
                     updateCommentsList(filteredData);
+                    updateWordClouds(filteredData); // NUEVO
                 }};
                 
+                // --- NUEVO: Toda la lógica para las nubes de palabras ---
+                const spanishStopwords = new Set(['de', 'la', 'que', 'el', 'en', 'y', 'a', 'los', 'del', 'se', 'las', 'por', 'un', 'para', 'con', 'no', 'una', 'su', 'al', 'lo', 'como', 'más', 'pero', 'sus', 'le', 'ya', 'o', 'este', 'ha', 'me', 'si', 'sin', 'sobre', 'es', 'porque', 'qué', 'cuando', 'muy', 'desde', 'mi', 'eso', 'esto', 'son', 'mis', 'ese', 'yo', 'e', 'hasta', 'puedo', 'esa', 'les']);
+                const processTextForWordCloud = (text) => {{
+                    const wordCounts = {{}};
+                    const words = text.toLowerCase().match(/\b\w+/g) || [];
+                    words.forEach(word => {{
+                        if (!spanishStopwords.has(word) && word.length > 2) {{
+                            wordCounts[word] = (wordCounts[word] || 0) + 1;
+                        }}
+                    }});
+                    return Object.entries(wordCounts).sort((a, b) => b[1] - a[1]).slice(0, 100);
+                }};
+
+                const updateWordClouds = (data) => {{
+                    let positiveText = data.filter(d => d.sentiment === 'Positivo').map(d => d.comment).join(' ');
+                    let negativeText = data.filter(d => d.sentiment === 'Negativo').map(d => d.comment).join(' ');
+
+                    const positiveWordList = processTextForWordCloud(positiveText);
+                    const negativeWordList = processTextForWordCloud(negativeText);
+                    
+                    const options = {{
+                        list: [],
+                        gridSize: Math.round(16 * document.getElementById('negativeWordCloud').width / 1024),
+                        weightFactor: (size) => Math.pow(size, 1.5) * document.getElementById('negativeWordCloud').width / 512,
+                        fontFamily: 'Arial, sans-serif',
+                        minSize: 10,
+                        backgroundColor: '#ffffff'
+                    }};
+
+                    options.list = negativeWordList;
+                    options.color = '#dc3545';
+                    WordCloud(document.getElementById('negativeWordCloud'), options);
+                    
+                    options.list = positiveWordList;
+                    options.color = '#28a745';
+                    WordCloud(document.getElementById('positiveWordCloud'), options);
+                }};
+                // --- FIN Lógica de nubes de palabras ---
+
+                // (El resto de las funciones de actualización no cambian)
                 const updateStats = (data) => {{
                     const total = data.length;
                     const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
@@ -211,7 +255,6 @@ def run_report_generation():
                     document.getElementById('comments-list').innerHTML = listHtml || "<p style='text-align:center;'>No hay comentarios en este rango.</p>";
                 }};
 
-                // <-- CORRECCIÓN: La función ahora recibe 'filteredData' y lo usa correctamente
                 const updateCharts = (totalData, filteredData) => {{
                     const postCounts = totalData.reduce((acc, curr) => {{
                         const platform = curr.platform || 'Desconocido';
@@ -265,25 +308,13 @@ def run_report_generation():
                     const selectedPlatform = platformFilter.value;
                     const currentPostSelection = postFilter.value;
                     const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s));
-
                     let postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform);
-                    
                     postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>';
-                    postsToShow.forEach(p => {{
-                        postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`;
-                    }});
-
-                    if (postsToShow.some(p => p.url === currentPostSelection)) {{
-                        postFilter.value = currentPostSelection;
-                    }} else {{
-                        postFilter.value = 'Todas';
-                    }}
+                    postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`; }});
+                    if (postsToShow.some(p => p.url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} else {{ postFilter.value = 'Todas'; }}
                 }};
 
-                platformFilter.addEventListener('change', () => {{
-                    updatePostFilterOptions();
-                    updateDashboard();
-                }});
+                platformFilter.addEventListener('change', () => {{ updatePostFilterOptions(); updateDashboard(); }});
                 postFilter.addEventListener('change', updateDashboard);
                 startDateInput.addEventListener('change', updateDashboard);
                 startTimeInput.addEventListener('change', updateDashboard);
