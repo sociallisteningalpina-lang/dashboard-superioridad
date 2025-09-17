@@ -6,7 +6,7 @@ import json
 
 def run_report_generation():
     """
-    Lee los datos del Excel, realiza el análisis de sentimientos 
+    Lee los datos del Excel, realiza el análisis de sentimientos y temas,
     y genera el panel HTML interactivo como 'index.html'.
     """
     print("--- INICIANDO GENERACIÓN DE INFORME HTML ---")
@@ -24,17 +24,17 @@ def run_report_generation():
     df.dropna(subset=['created_time_colombia', 'comment_text', 'post_url'], inplace=True)
     df.reset_index(drop=True, inplace=True)
 
-    # --- Crear etiquetas legibles para cada pauta ---
     unique_posts = df[['post_url', 'platform']].drop_duplicates().reset_index(drop=True)
     post_labels = {}
     for index, row in unique_posts.iterrows():
         post_labels[row['post_url']] = f"Pauta {index + 1} ({row['platform']})"
     df['post_label'] = df['post_url'].map(post_labels)
 
-    # --- Análisis de Sentimientos y Temas ---
     print("Analizando sentimientos y temas...")
     sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
     df['sentimiento'] = df['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
+    
+    # <<<--- AQUÍ ESTÁ LA LÓGICA DE TEMAS DE "SUPERIORIDAD LÁCTEA" INTEGRADA ---<<<
     def classify_topic(comment):
         comment_lower = str(comment).lower()
         if re.search(r'\bia\b|inteligencia artificial|prompts', comment_lower): return 'Críticas a la IA'
@@ -43,10 +43,10 @@ def run_report_generation():
         if re.search(r'bonito|lindo|divino|horrible|feo|calidad|barato', comment_lower): return 'Calidad del Contenido'
         if re.search(r'alquería|pureza|competencia', comment_lower): return 'Mención a Competencia'
         return 'Otros'
+    
     df['tema'] = df['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
-    # --- Preparar datos para el JSON ---
     df_for_json = df[['created_time_colombia', 'comment_text', 'sentimiento', 'tema', 'platform', 'post_url', 'post_label']].copy()
     df_for_json.rename(columns={'created_time_colombia': 'date', 'comment_text': 'comment', 'sentimiento': 'sentiment', 'tema': 'topic'}, inplace=True)
     df_for_json['date'] = df_for_json['date'].dt.strftime('%Y-%m-%dT%H:%M:%S')
@@ -55,18 +55,10 @@ def run_report_generation():
     min_date = df['created_time_colombia'].min().strftime('%Y-%m-%d')
     max_date = df['created_time_colombia'].max().strftime('%Y-%m-%d')
     
-    # --- Generar HTML para filtros y listas ---
     post_filter_options = '<option value="Todas">Ver Todas las Pautas</option>'
     for url, label in post_labels.items():
         post_filter_options += f'<option value="{url}">{label}</option>'
-    
-    # <-- CORRECCIÓN: Generar hipervínculos en lugar de URLs completas -->
-    post_links_html = '<ul>'
-    for url, label in post_labels.items():
-        post_links_html += f'<li><strong>{label}:</strong> <a href="{url}" target="_blank">Ver Pauta</a></li>'
-    post_links_html += '</ul>'
 
-    # --- Generar el archivo HTML Dinámico ---
     html_content = f"""
     <!DOCTYPE html>
     <html lang="es">
@@ -85,10 +77,15 @@ def run_report_generation():
             .filters {{ padding: 15px 20px; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 20px; }}
             .filters label {{ font-weight: bold; margin-right: 5px; }}
             .filters input, .filters select {{ padding: 8px; border-radius: 5px; border: 1px solid #ccc; }}
-            .post-links ul {{ list-style-type: none; padding: 15px 20px; }}
-            .post-links li {{ margin-bottom: 8px; font-size: 0.9em; }}
+            .post-links table {{ width: 100%; border-collapse: collapse; }}
+            .post-links th, .post-links td {{ padding: 12px 15px; text-align: left; border-bottom: 1px solid #ddd; }}
+            .post-links th {{ background-color: #f8f9fa; }}
             .post-links a {{ color: #007bff; text-decoration: none; font-weight: bold; }}
             .post-links a:hover {{ text-decoration: underline; }}
+            .pagination-controls {{ text-align: center; padding: 15px; }}
+            .pagination-controls button {{ padding: 8px 16px; margin: 0 5px; cursor: pointer; border: 1px solid #ccc; background-color: #fff; border-radius: 5px; }}
+            .pagination-controls button:disabled {{ cursor: not-allowed; background-color: #f8f9fa; color: #aaa; }}
+            .pagination-controls span {{ margin: 0 10px; font-weight: bold; vertical-align: middle; }}
             .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; padding: 20px; }}
             .stat-card {{ padding: 20px; text-align: center; border-left: 5px solid; }}
             .stat-card.total {{ border-left-color: #007bff; }}
@@ -104,6 +101,8 @@ def run_report_generation():
             .chart-container.full-width {{ grid-column: 1 / -1; }}
             .comment-item {{ margin-bottom: 10px; padding: 15px; border-radius: 8px; border-left: 5px solid; word-wrap: break-word; }}
             .comment-positive {{ border-left-color: #28a745; background: #f0fff4; }} .comment-negative {{ border-left-color: #dc3545; background: #fff5f5; }} .comment-neutral {{ border-left-color: #ffc107; background: #fffbeb; }}
+            .comment-meta {{ margin-bottom: 8px; font-size: 0.9em; display: flex; justify-content: space-between; align-items: center; }}
+            .comment-date {{ color: #6c757d; font-style: italic; }}
             @media (max-width: 900px) {{ .charts-grid {{ grid-template-columns: 1fr; }} }}
         </style>
     </head>
@@ -123,7 +122,8 @@ def run_report_generation():
             
             <div class="card post-links">
                 <h2 class="section-title">Listado de Pautas Activas</h2>
-                {post_links_html}
+                <div id="post-links-table"></div>
+                <div id="post-links-pagination" class="pagination-controls"></div>
             </div>
 
             <div class="card">
@@ -140,7 +140,7 @@ def run_report_generation():
                     <div class="chart-container full-width"><canvas id="dailyChart"></canvas></div>
                     <div class="chart-container full-width"><canvas id="hourlyChart"></canvas></div>
                 </div>
-            </section>
+            </div>
             
             <div class="card comments-section">
                 <h2 class="section-title">💬 Comentarios Filtrados</h2>
@@ -152,7 +152,7 @@ def run_report_generation():
             document.addEventListener('DOMContentLoaded', () => {{
                 const dataStoreElement = document.getElementById('data-store');
                 const allData = JSON.parse(dataStoreElement.textContent);
-
+                
                 const startDateInput = document.getElementById('startDate');
                 const startTimeInput = document.getElementById('startTime');
                 const endDateInput = document.getElementById('endDate');
@@ -169,127 +169,99 @@ def run_report_generation():
                     hourly: new Chart(document.getElementById('hourlyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true, position: 'left', title: {{ display: true, text: 'Comentarios por Hora' }} }}, y1: {{ position: 'right', grid: {{ drawOnChartArea: false }}, title: {{ display: true, text: 'Total Acumulado' }} }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Hora' }} }} }} }})
                 }};
 
+                let postLinksCurrentPage = 1;
+                const POST_LINKS_PER_PAGE = 5;
+
+                const updatePostLinks = () => {{
+                    const selectedPlatform = platformFilter.value;
+                    const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s));
+                    const postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform);
+                    
+                    const tableDiv = document.getElementById('post-links-table');
+                    const paginationDiv = document.getElementById('post-links-pagination');
+                    tableDiv.innerHTML = '';
+                    paginationDiv.innerHTML = '';
+
+                    if (postsToShow.length === 0) return;
+
+                    const totalPages = Math.ceil(postsToShow.length / POST_LINKS_PER_PAGE);
+                    if (postLinksCurrentPage > totalPages) postLinksCurrentPage = 1;
+
+                    const startIndex = (postLinksCurrentPage - 1) * POST_LINKS_PER_PAGE;
+                    const paginatedPosts = postsToShow.slice(startIndex, startIndex + POST_LINKS_PER_PAGE);
+
+                    let tableHTML = '<table><tr><th>Pauta</th><th>Enlace</th></tr>';
+                    paginatedPosts.forEach(p => {{
+                        tableHTML += `<tr><td>${{p.label}}</td><td><a href="${{p.url}}" target="_blank">Ver Pauta</a></td></tr>`;
+                    }});
+                    tableHTML += '</table>';
+                    tableDiv.innerHTML = tableHTML;
+
+                    if (totalPages > 1) {{
+                        let paginationHTML = `
+                            <button id="prevPageBtn" ${{ (postLinksCurrentPage === 1) ? 'disabled' : '' }}>Anterior</button>
+                            <span>Página ${{postLinksCurrentPage}} de ${{totalPages}}</span>
+                            <button id="nextPageBtn" ${{ (postLinksCurrentPage === totalPages) ? 'disabled' : '' }}>Siguiente</button>
+                        `;
+                        paginationDiv.innerHTML = paginationHTML;
+
+                        document.getElementById('prevPageBtn')?.addEventListener('click', () => {{
+                            if (postLinksCurrentPage > 1) {{ postLinksCurrentPage--; updatePostLinks(); }}
+                        }});
+                        document.getElementById('nextPageBtn')?.addEventListener('click', () => {{
+                            if (postLinksCurrentPage < totalPages) {{ postLinksCurrentPage++; updatePostLinks(); }}
+                        }});
+                    }}
+                }};
+                
                 const updateDashboard = () => {{
                     const startFilter = startDateInput.value + 'T' + startTimeInput.value + ':00';
                     const endFilter = endDateInput.value + 'T' + endTimeInput.value + ':59';
                     const selectedPlatform = platformFilter.value;
                     const selectedPost = postFilter.value;
-
                     let filteredData = allData.filter(d => d.date >= startFilter && d.date <= endFilter);
-
                     if (selectedPost !== 'Todas') {{
                         filteredData = filteredData.filter(d => d.post_url === selectedPost);
                     }} else if (selectedPlatform !== 'Todas') {{
                         filteredData = filteredData.filter(d => d.platform === selectedPlatform);
                     }}
-                    
                     updateStats(filteredData);
                     updateCharts(allData, filteredData);
                     updateCommentsList(filteredData);
                 }};
                 
-                const updateStats = (data) => {{
-                    const total = data.length;
-                    const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
-                    const pos = sentiments['Positivo'] || 0;
-                    const neg = sentiments['Negativo'] || 0;
-                    const neu = sentiments['Neutro'] || 0;
-                    document.getElementById('stats-grid').innerHTML = `
-                        <div class="stat-card total"><div class="stat-number total-text">${{total}}</div><div>Total Comentarios</div></div>
-                        <div class="stat-card positive"><div class="stat-number positive-text">${{pos}}</div><div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div></div>
-                        <div class="stat-card negative"><div class="stat-number negative-text">${{neg}}</div><div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div></div>
-                        <div class="stat-card neutral"><div class="stat-number neutral-text">${{neu}}</div><div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div></div>
-                    `;
-                }};
-
+                const updateStats = (data) => {{ const total = data.length; const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); const pos = sentiments['Positivo'] || 0; const neg = sentiments['Negativo'] || 0; const neu = sentiments['Neutro'] || 0; document.getElementById('stats-grid').innerHTML = `<div class="stat-card total"><div class="stat-number total-text">${{total}}</div><div>Total Comentarios</div></div><div class="stat-card positive"><div class="stat-number positive-text">${{pos}}</div><div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div></div><div class="stat-card negative"><div class="stat-number negative-text">${{neg}}</div><div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div></div><div class="stat-card neutral"><div class="stat-number neutral-text">${{neu}}</div><div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div></div>`; }};
+                
                 const updateCommentsList = (data) => {{
                     const sentimentToCss = {{ 'Positivo': 'positive', 'Negativo': 'negative', 'Neutro': 'neutral' }};
-                    const listHtml = data.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200).map((d, i) => {{
+                    let listHtml = '';
+                    data.sort((a, b) => b.date.localeCompare(a.date)).slice(0, 200).forEach(d => {{
                         const escapedComment = d.comment.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                        return `<div class="comment-item comment-${{sentimentToCss[d.sentiment]}}"><strong>[${{d.sentiment.toUpperCase()}}] (Tema: ${{d.topic}})</strong> - ${{escapedComment}}</div>`;
-                    }}).join('');
+                        const commentDate = new Date(d.date);
+                        const formattedDate = commentDate.toLocaleString('es-CO', {{ day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute:'2-digit' }});
+                        listHtml += `<div class="comment-item comment-${{sentimentToCss[d.sentiment]}}">
+                                        <div class="comment-meta">
+                                            <strong>[${{d.sentiment.toUpperCase()}}] (Tema: ${{d.topic}})</strong>
+                                            <span class="comment-date">${{formattedDate}}</span>
+                                        </div>
+                                        <div>${{escapedComment}}</div>
+                                    </div>`;
+                    }});
                     document.getElementById('comments-list').innerHTML = listHtml || "<p style='text-align:center;'>No hay comentarios en este rango.</p>";
                 }};
 
-                // <-- CORRECCIÓN: La función ahora recibe 'filteredData' y lo usa correctamente
-                const updateCharts = (totalData, filteredData) => {{
-                    const postCounts = totalData.reduce((acc, curr) => {{
-                        const platform = curr.platform || 'Desconocido';
-                        if (!acc[platform]) {{ acc[platform] = new Set(); }}
-                        acc[platform].add(curr.post_url);
-                        return acc;
-                    }}, {{}});
-                    const postCountLabels = Object.keys(postCounts);
-                    charts.postCount.data.labels = postCountLabels;
-                    charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p].size), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}];
-                    charts.postCount.update();
-                    
-                    const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
-                    charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro'];
-                    charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}];
-                    charts.sentiment.update();
+                const updateCharts = (totalData, filteredData) => {{ const postCounts = totalData.reduce((acc, curr) => {{ const platform = curr.platform || 'Desconocido'; if (!acc[platform]) {{ acc[platform] = new Set(); }} acc[platform].add(curr.post_url); return acc; }}, {{}}); const postCountLabels = Object.keys(postCounts); charts.postCount.data.labels = postCountLabels; charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p].size), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}]; charts.postCount.update(); const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro']; charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}]; charts.sentiment.update(); const topicCounts = filteredData.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}}); const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]); charts.topics.data.labels = sortedTopics.map(d => d[0]); charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}]; charts.topics.update(); const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}}); const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro)); charts.sentimentByTopic.data.labels = sbtLabels; charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ]; charts.sentimentByTopic.update(); const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }} acc[day][curr.sentiment]++; return acc; }}, {{}}); const sortedDays = Object.keys(dailyCounts).sort(); charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }})); charts.daily.data.datasets = [ {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} ]; charts.daily.update(); const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}}); const sortedHours = Object.keys(hourlyCounts).sort(); let cumulative = 0; const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }}); charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }})); charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ]; charts.hourly.update(); }};
+                
+                const updatePostFilterOptions = () => {{ const selectedPlatform = platformFilter.value; const currentPostSelection = postFilter.value; const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s)); let postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform); postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>'; postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`; }}); if (postsToShow.some(p => p.url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} else {{ postFilter.value = 'Todas'; }} }};
 
-                    const topicCounts = filteredData.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}});
-                    const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]);
-                    charts.topics.data.labels = sortedTopics.map(d => d[0]);
-                    charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}];
-                    charts.topics.update();
-                    
-                    const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}});
-                    const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro));
-                    charts.sentimentByTopic.data.labels = sbtLabels;
-                    charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ];
-                    charts.sentimentByTopic.update();
-
-                    const dailyCounts = filteredData.reduce((acc, curr) => {{
-                        const day = curr.date.substring(0, 10);
-                        if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }}
-                        acc[day][curr.sentiment]++;
-                        return acc;
-                    }}, {{}});
-                    const sortedDays = Object.keys(dailyCounts).sort();
-                    charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }}));
-                    charts.daily.data.datasets = [ {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} ];
-                    charts.daily.update();
-
-                    const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}});
-                    const sortedHours = Object.keys(hourlyCounts).sort();
-                    let cumulative = 0;
-                    const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }});
-                    charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }}));
-                    charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ];
-                    charts.hourly.update();
-                }};
-
-                const updatePostFilterOptions = () => {{
-                    const selectedPlatform = platformFilter.value;
-                    const currentPostSelection = postFilter.value;
-                    const uniquePosts = [...new Set(allData.map(p => JSON.stringify({{url: p.post_url, label: p.post_label, platform: p.platform}})))].map(s => JSON.parse(s));
-
-                    let postsToShow = (selectedPlatform === 'Todas') ? uniquePosts : uniquePosts.filter(p => p.platform === selectedPlatform);
-                    
-                    postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>';
-                    postsToShow.forEach(p => {{
-                        postFilter.innerHTML += `<option value="${{p.url}}">${{p.label}}</option>`;
-                    }});
-
-                    if (postsToShow.some(p => p.url === currentPostSelection)) {{
-                        postFilter.value = currentPostSelection;
-                    }} else {{
-                        postFilter.value = 'Todas';
-                    }}
-                }};
-
-                platformFilter.addEventListener('change', () => {{
-                    updatePostFilterOptions();
-                    updateDashboard();
-                }});
+                platformFilter.addEventListener('change', () => {{ updatePostFilterOptions(); postLinksCurrentPage = 1; updatePostLinks(); updateDashboard(); }});
                 postFilter.addEventListener('change', updateDashboard);
                 startDateInput.addEventListener('change', updateDashboard);
                 startTimeInput.addEventListener('change', updateDashboard);
                 endDateInput.addEventListener('change', updateDashboard);
                 endTimeInput.addEventListener('change', updateDashboard);
                 
+                updatePostLinks();
                 updateDashboard();
             }});
         </script>
