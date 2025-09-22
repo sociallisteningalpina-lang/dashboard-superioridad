@@ -24,6 +24,7 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DOeAYHHABLU/#advertiser",
     
     # TikTok URLs
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329?_r=1&_t=ZS-8zwvb20aaGt",
     "https://www.tiktok.com/@user369347738/video/7548206070330559762?_r=1&_t=ZS-8zeMhsrP2tb",
     "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366028664072?_r=1&_t=ZS-8zeO4aLLKtz",
     "https://www.tiktok.com/@user369347738/video/7548206069886061831?_r=1&_t=ZS-8zeO6GZn8iN",
@@ -251,6 +252,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
