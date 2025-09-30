@@ -17,43 +17,9 @@ SOLO_PRIMER_POST = False
 
 # LISTA DE URLs A PROCESAR
 URLS_A_PROCESAR = [
-    # Instagram and Facebook URLs (Originales)
-    "https://www.instagram.com/p/DOd_xzvAM_W/#advertiser",
-    "https://www.facebook.com/100064867445065/posts/1217384173767153/?dco_ad_token=AaoUMSR4O0Jn0kI9WJNgACCt818bH-qdkhOz0IzQxlGq3C6LvYpk-Hul05udjhZh7O0IEZtYs9sGUyhI&dco_ad_id=120234933628460640",
-    "https://www.facebook.com/100064867445065/posts/1217383833767187/?dco_ad_token=AaoI_1TcTGLFpUm7WcXykrP4fE3pj5Rq_cZiUmubnPAj2HghH9agXsDDsIgxAbIUjgyyQP8CAV2U0B9Z&dco_ad_id=120234933289600640",
-    "https://www.instagram.com/p/DOeAYHHABLU/#advertiser",
-    
-    # TikTok URLs (Originales)
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329?_r=1&_t=ZS-8zwvb20aaGt",
-    "https://www.tiktok.com/@user369347738/video/7548206070330559762?_r=1&_t=ZS-8zeMhsrP2tb",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366028664072?_r=1&_t=ZS-8zeO4aLLKtz",
-    "https://www.tiktok.com/@user369347738/video/7548206069886061831?_r=1&_t=ZS-8zeO6GZn8iN",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548918352757001490?_r=1&_t=ZS-8zeO9hmWXF2",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366343171346?_r=1&_t=ZS-8zeOAge5FPm",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890371032419591?_r=1&_t=ZS-8zeOBRN6iBE",
-    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548872989274672401?_r=1&_t=ZS-8zeOEQFvD1j",
-
-    # Nuevas URLs de Facebook Agregadas
-    "https://www.facebook.com/100064867445065/posts/pfbid0SavmgcaTFNzwfFbxDjerqF3UqUGfaAqmmPcwmZByX9WDG4EfBkZRCeEqgf5efwFrl?dco_ad_id=120235228723490640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02ppUkwFwzAXGKLcN7drP62ycAUAYiFqNH2krNQ3ge1Dd8ZT3xMz9kYVQC9658tfnbl?dco_ad_id=120235228477090640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02t4sFi6WKSVmp6JGpgdfE3FLTcv5dkeoBD9QHhEPbaMVzYu9s6UnqJrw1tdSUKaR7l?dco_ad_id=120235228723550640",
-    "https://www.facebook.com/100064867445065/posts/pfbid0wTzVhu4ajvcZ1aA2pbhwPLrt55dveoPzZmqeVTZjwpN7d3LAXKxhbtFXEJXeH9mfl?dco_ad_id=120235228477100640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02t4sFi6WKSVmp6JGpgdfE3FLTcv5dkeoBD9QHhEPbaMVzYu9s6UnqJrw1tdSUKaR7l?dco_ad_id=120235228616180640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02ppUkwFwzAXGKLcN7drP62ycAUAYiFqNH2krNQ3ge1Dd8ZT3xMz9kYVQC9658tfnbl?dco_ad_id=120235228723530640",
-    "https://www.facebook.com/100064867445065/posts/pfbid0wTzVhu4ajvcZ1aA2pbhwPLrt55dveoPzZmqeVTZjwpN7d3LAXKxhbtFXEJXeH9mfl?dco_ad_id=120235228723500640",
-    "https://www.facebook.com/100064867445065/posts/pfbid0wTzVhu4ajvcZ1aA2pbhwPLrt55dveoPzZmqeVTZjwpN7d3LAXKxhbtFXEJXeH9mfl?dco_ad_id=120235228723540640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02t4sFi6WKSVmp6JGpgdfE3FLTcv5dkeoBD9QHhEPbaMVzYu9s6UnqJrw1tdSUKaR7l?dco_ad_id=120235228723520640",
-    "https://www.facebook.com/100064867445065/posts/pfbid0SavmgcaTFNzwfFbxDjerqF3UqUGfaAqmmPcwmZByX9WDG4EfBkZRCeEqgf5efwFrl?dco_ad_id=120235228723560640",
-    "https://www.facebook.com/100064867445065/posts/pfbid0SavmgcaTFNzwfFbxDjerqF3UqUGfaAqmmPcwmZByX9WDG4EfBkZRCeEqgf5efwFrl?dco_ad_id=120235228616190640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02ppUkwFwzAXGKLcN7drP62ycAUAYiFqNH2krNQ3ge1Dd8ZT3xMz9kYVQC9658tfnbl?dco_ad_id=120235228723510640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02vdPitVJiBYmgUj2cs2HLuPtnjPWZi5kCTr7R3TJdLztGVesardr8vhZtZkmHp9q2l?dco_ad_id=120235228406030640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02vdPitVJiBYmgUj2cs2HLuPtnjPWZi5kCTr7R3TJdLztGVesardr8vhZtZkmHp9q2l?dco_ad_id=120235228406040640",
-    "https://www.facebook.com/100064867445065/posts/pfbid01EjxNJLRY9MPCKpT7FyYRd1AvfotVwhszWg6Pzs5tWFraBUi6bnXejiwx5Ay29q2l?dco_ad_id=120235228406050640",
-    "https://www.facebook.com/100064867445065/posts/pfbid01EjxNJLRY9MPCKpT7FyYRd1AvfotVwhszWg6Pzs5tWFraBUi6bnXejiwx5Ay29q2l?dco_ad_id=120235228406020640",
-    "https://www.facebook.com/100064867445065/posts/pfbid02vdPitVJiBYmgUj2cs2HLuPtnjPWZi5kCTr7R3TJdLztGVesardr8vhZtZkmHp9q2l?dco_ad_id=120235227979540640",
-    "https://www.facebook.com/100064867445065/posts/pfbid01EjxNJLRY9MPCKpT7FyYRd1AvfotVwhszWg6Pzs5tWFraBUi6bnXejiwx5Ay29q2l?dco_ad_id=120235228066370640",
-    
-    # Nuevas URLs de Instagram Agregadas
+    # Instagram
+    "https://www.instagram.com/p/DOd_xzvAM_W/",
+    "https://www.instagram.com/p/DOeAYHHABLU/",
     "https://www.instagram.com/p/DOnCgSHgM-y/",
     "https://www.instagram.com/p/DOnCcIqgMCH/",
     "https://www.instagram.com/p/DOnCguMALGb/",
@@ -72,7 +38,27 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DOnA0ZGAOX_/",
     "https://www.instagram.com/p/DOnAdDbAAiy/",
     "https://www.instagram.com/p/DOnAWX2gAt0/",
-    "https://www.instagram.com/p/DPFJuzsgOwv/#advertiser"
+    "https://www.instagram.com/p/DPFJuzsgOwv/",
+
+    # Facebook
+    "https://www.facebook.com/100064867445065/posts/1217384173767153/",
+    "https://www.facebook.com/100064867445065/posts/1217383833767187/",
+    "https://www.facebook.com/100064867445065/posts/pfbid0SavmgcaTFNzwfFbxDjerqF3UqUGfaAqmmPcwmZByX9WDG4EfBkZRCeEqgf5efwFrl",
+    "https://www.facebook.com/100064867445065/posts/pfbid02ppUkwFwzAXGKLcN7drP62ycAUAYiFqNH2krNQ3ge1Dd8ZT3xMz9kYVQC9658tfnbl",
+    "https://www.facebook.com/100064867445065/posts/pfbid02t4sFi6WKSVmp6JGpgdfE3FLTcv5dkeoBD9QHhEPbaMVzYu9s6UnqJrw1tdSUKaR7l",
+    "https://www.facebook.com/100064867445065/posts/pfbid0wTzVhu4ajvcZ1aA2pbhwPLrt55dveoPzZmqeVTZjwpN7d3LAXKxhbtFXEJXeH9mfl",
+    "https://www.facebook.com/100064867445065/posts/pfbid02vdPitVJiBYmgUj2cs2HLuPtnjPWZi5kCTr7R3TJdLztGVesardr8vhZtZkmHp9q2l",
+    "https://www.facebook.com/100064867445065/posts/pfbid01EjxNJLRY9MPCKpT7FyYRd1AvfotVwhszWg6Pzs5tWFraBUi6bnXejiwx5Ay29q2l",
+
+    # TikTok
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329",
+    "https://www.tiktok.com/@user369347738/video/7548206070330559762",
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366028664072",
+    "https://www.tiktok.com/@user369347738/video/7548206069886061831",
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548918352757001490",
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890366343171346",
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548890371032419591",
+    "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7548872989274672401"
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -293,6 +279,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
