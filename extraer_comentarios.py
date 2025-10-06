@@ -39,6 +39,11 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DOnAdDbAAiy/",
     "https://www.instagram.com/p/DOnAWX2gAt0/",
     "https://www.instagram.com/p/DPFJuzsgOwv/",
+    "https://www.instagram.com/p/DPR99idgI9r/",
+    "https://www.instagram.com/p/DPR8fkYgHTX/",
+    "https://www.instagram.com/p/DPR8fIPgHFb/",
+    "https://www.instagram.com/p/DPR8eD8gF6h/",
+    "https://www.instagram.com/p/DPR8fZLgJpl/",
 
     # Facebook
     "https://www.facebook.com/100064867445065/posts/1217384173767153/",
@@ -49,6 +54,11 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/100064867445065/posts/pfbid0wTzVhu4ajvcZ1aA2pbhwPLrt55dveoPzZmqeVTZjwpN7d3LAXKxhbtFXEJXeH9mfl",
     "https://www.facebook.com/100064867445065/posts/pfbid02vdPitVJiBYmgUj2cs2HLuPtnjPWZi5kCTr7R3TJdLztGVesardr8vhZtZkmHp9q2l",
     "https://www.facebook.com/100064867445065/posts/pfbid01EjxNJLRY9MPCKpT7FyYRd1AvfotVwhszWg6Pzs5tWFraBUi6bnXejiwx5Ay29q2l",
+    "https://www.facebook.com/?feed_demo_ad=120236325287690640&h=AQChRhkkhNKW_tQFdAY",
+    "https://www.facebook.com/?feed_demo_ad=120236324670140640&h=AQB44Ut65grP7KBN0So",
+    "https://www.facebook.com/?feed_demo_ad=120236325130830640&h=AQBAGgJAQSY4ch_Hb7U",
+    "https://www.facebook.com/?feed_demo_ad=120236325185800640&h=AQAtF24HPHNHakqWzd0",
+    "https://www.facebook.com/?feed_demo_ad=120236325162820640&h=AQAYz3GDquTbbeIjmwI",
 
     # TikTok
     "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329",
@@ -279,6 +289,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
