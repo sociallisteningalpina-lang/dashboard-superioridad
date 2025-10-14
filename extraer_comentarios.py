@@ -76,7 +76,17 @@ URLS_A_PROCESAR = [
     "https://www.tiktok.com/@alpinacol/video/7556663564489051413?_r=1&_t=ZS-90MGTFdxSyY",
     "https://www.tiktok.com/@alpinacol/video/7556666043746340112?_r=1&_t=ZS-90MGQkEa5xf",
     "https://www.tiktok.com/@alpinacol/video/7554519618174389512?_r=1&_t=ZS-90MGNDfj7qM",
-    "https://www.tiktok.com/@alpinacol/video/7556666047076502785?_r=1&_t=ZS-90MGLX55n8M"
+    "https://www.tiktok.com/@alpinacol/video/7556666047076502785?_r=1&_t=ZS-90MGLX55n8M",
+    "https://www.tiktok.com/@alpinacol/video/7554519618174389512?_r=1&_t=ZS-90Y3FEZWIfX",
+    "https://www.tiktok.com/@alpinacol/video/7558824662910782738?_r=1&_t=ZS-90Y3Ojc0EAZ",
+    "https://www.tiktok.com/@alpinacol/video/7558824665163074834?_r=1&_t=ZS-90Y3RPVylPE",
+    "https://www.tiktok.com/@alpinacol/video/7558824655524547841?_r=1&_t=ZS-90Y3ZvDjcrH",
+    "https://www.tiktok.com/@alpinacol/video/7558824662910749970?_r=1&_t=ZS-90Y3ds3sXZ9",
+    "https://www.tiktok.com/@alpinacol/video/7558824666261916936?_r=1&_t=ZS-90Y3gsjNZD8",
+    "https://www.tiktok.com/@alpinacol/video/7558824653947538705?_r=1&_t=ZS-90Y3izNiVRH",
+    "https://www.tiktok.com/@alpinacol/video/7558824665162976530?_r=1&_t=ZS-90Y3mahC8u7",
+    "https://www.tiktok.com/@alpinacol/video/7558824657030302993?_r=1&_t=ZS-90Y3nvXXWOQ",
+    "https://www.tiktok.com/@alpinacol/video/7558824664991010066?_r=1&_t=ZS-90Y3qQAvrGy"
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -297,6 +307,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
