@@ -62,14 +62,59 @@ def run_report_generation():
     
     # <<<--- FUNCIÓN DE CLASIFICACIÓN (sin cambios) ---<<<
     
-    def classify_topic(comment):
+    def classify_topic_detailed(comment):
+        """
+        Clasifica un comentario en categorías más específicas basadas en una lista
+        extendida de temas y palabras clave.
+        """
         comment_lower = str(comment).lower()
-        if re.search(r'\bia\b|inteligencia artificial|prompts', comment_lower): return 'Críticas a la IA'
-        if re.search(r'artista|diseñador|animador|contratar|pagar', comment_lower): return 'Apoyo a Artistas'
-        if re.search(r'marketing|marca|audiencia|jefazos', comment_lower): return 'Estrategia de Marketing'
-        if re.search(r'bonito|lindo|divino|horrible|feo|calidad|barato', comment_lower): return 'Calidad del Contenido'
-        if re.search(r'alquería|pureza|competencia', comment_lower): return 'Mención a Competencia'
-        return 'Otros'
+    
+        # --- CATEGORÍAS DE CRÍTICA ---
+    
+        # 1. Crítica fuerte al uso de IA y falta de apoyo a artistas. Es el tema más recurrente.
+        if re.search(r'\bia\b|inteligencia artificial|animador|artista|diseñador|pagar|contratar|presupuesto|tacaños|ahorrar|flojera|pereza|barato', comment_lower):
+            return 'Crítica: Uso de IA / Falta de apoyo a artistas'
+    
+        # 2. Crítica a la calidad, precio o ingredientes del producto.
+        if re.search(r'caro|azúcar|agua|calidad del producto|químico|artificial son los nutriente', comment_lower):
+            return 'Crítica: Calidad o Precio del Producto'
+    
+        # 3. Crítica a la veracidad del anuncio (ej. el del señor mayor).
+        if re.search(r'mentiroso|embustero|ese tiempo no existía|no avía esa marca|dudo mucho', comment_lower):
+            return 'Crítica: Contenido del Anuncio (Veracidad)'
+    
+        # 4. Mención directa a la competencia de forma comparativa o como alternativa.
+        if re.search(r'alquería|pureza|competencia', comment_lower):
+            return 'Mención a Competencia'
+    
+        # 5. Críticas sobre las prácticas laborales de la empresa.
+        if re.search(r'empleado|cooperativas|liquidaciones|negreros', comment_lower):
+            return 'Crítica: Prácticas Laborales'
+    
+        # --- CATEGORÍAS POSITIVAS Y NEUTRAS ---
+    
+        # 6. Comentarios positivos sobre la marca, la campaña o los productos.
+        if re.search(r'bonito|lindo|divino|me encanta|excelente|amo|deliciosa|gran producto|buenos', comment_lower):
+            return 'Comentario Positivo / Apoyo a la Marca'
+    
+        # 7. Sugerencias o peticiones directas de productos.
+        if re.search(r'mochis|yox sin azúcar|vender sus productos', comment_lower):
+            return 'Sugerencia de Producto'
+            
+        # --- CATEGORÍAS DE BAJA INTERACCIÓN O SPAM ---
+    
+        # 8. Detecta spam claro o comentarios irrelevantes.
+        if re.search(r'contraseña de cualquier red wi-fi|gog6', comment_lower):
+            return 'Spam'
+    
+        # 9. Comentarios muy cortos, emojis sueltos o saludos que no aportan un tema claro.
+        if len(comment.split()) < 3 and not re.search(r'[a-zA-Z]', comment_lower):
+            return 'Interacción General (Emojis/Corto)'
+    
+        # --- CATEGORÍA GENERAL ---
+    
+        # 10. Si no coincide con ninguna de las categorías anteriores.
+        return 'Otro'
         
     # <<<--- TERMINA LA NUEVA FUNCIÓN DE CLASIFICACIÓN ---<<<
 
@@ -362,3 +407,4 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
