@@ -62,7 +62,7 @@ def run_report_generation():
     
     # <<<--- FUNCIÓN DE CLASIFICACIÓN (sin cambios) ---<<<
     
-    def classify_topic_detailed(comment):
+    def classify_topic(comment):
         """
         Clasifica un comentario en categorías más específicas basadas en una lista
         extendida de temas y palabras clave.
@@ -407,4 +407,5 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
 
