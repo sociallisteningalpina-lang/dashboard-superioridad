@@ -44,6 +44,22 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DPR8fIPgHFb/",
     "https://www.instagram.com/p/DPR8eD8gF6h/",
     "https://www.instagram.com/p/DPR8fZLgJpl/",
+    # --- Links de Excel añadidos ---
+    "https://www.instagram.com/p/DPy8k4_AOBD/#advertiser",
+    "https://www.instagram.com/p/DPjQxzsgP9k/",
+    "https://www.instagram.com/p/DPT9nOrgFWC/",
+    "https://www.instagram.com/p/DPT9op8ACyI/",
+    "https://www.instagram.com/p/DPT9DVHAOcj/",
+    "https://www.instagram.com/p/DPjQxUVgLTi/",
+    "https://www.instagram.com/p/DPjQvlpgP7f/",
+    "https://www.instagram.com/p/DPjQ0EzAJnK/",
+    "https://www.instagram.com/p/DPjQwjegD_D/",
+    "https://www.instagram.com/p/DPjQx63AC1N/",
+    "https://www.instagram.com/p/DPjQxFPADDe/",
+    "https://www.instagram.com/p/DPjQxtuAAgA/",
+    "https://www.instagram.com/p/DPjQ0HqALjk/",
+    "https://www.instagram.com/p/DPjQx2gAK2t/",
+    "https://www.instagram.com/p/DPy9BftAHKl/",
 
     # Facebook
     "https://www.facebook.com/100064867445065/posts/1217384173767153/",
@@ -59,6 +75,8 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/?feed_demo_ad=120236325130830640&h=AQBAGgJAQSY4ch_Hb7U",
     "https://www.facebook.com/?feed_demo_ad=120236325185800640&h=AQAtF24HPHNHakqWzd0",
     "https://www.facebook.com/?feed_demo_ad=120236325162820640&h=AQAYz3GDquTbbeIjmwI",
+    # --- Links de Excel añadidos ---
+    "https://www.facebook.com/100064867445065/posts/1247791610726409/?dco_ad_token=Aapj_AgRyAFyvo58bReyXQGjyl3pjEyOg8MQNF6BORDzFYIihmO-xoWfuEuSa0rAHUoXymfIucjCZAaA&dco_ad_id=120237209483310640",
 
     # TikTok
     "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329",
@@ -86,7 +104,9 @@ URLS_A_PROCESAR = [
     "https://www.tiktok.com/@alpinacol/video/7558824653947538705?_r=1&_t=ZS-90Y3izNiVRH",
     "https://www.tiktok.com/@alpinacol/video/7558824665162976530?_r=1&_t=ZS-90Y3mahC8u7",
     "https://www.tiktok.com/@alpinacol/video/7558824657030302993?_r=1&_t=ZS-90Y3nvXXWOQ",
-    "https://www.tiktok.com/@alpinacol/video/7558824664991010066?_r=1&_t=ZS-90Y3qQAvrGy"
+    "https://www.tiktok.com/@alpinacol/video/7558824664991010066?_r=1&_t=ZS-90Y3qQAvrGy",
+    # --- Links de Excel añadidos ---
+    "https://www.tiktok.com/@alpinacol/video/7558824650868837648?_r=1&_t=ZS-90jgxZNxMiO",
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -307,6 +327,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
