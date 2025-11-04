@@ -59,9 +59,12 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DPjQ0HqALjk/",
     "https://www.instagram.com/p/DPjQx2gAK2t/",
     "https://www.instagram.com/p/DPy9BftAHKl/",
+    "https://www.instagram.com/p/DPojcrxAM4H/",  # NUEVO
     #NUEVOS
     "https://www.instagram.com/p/DQHoasBAIfd/",
     "https://www.instagram.com/p/DQHoMgYALbI/",
+    "https://www.instagram.com/p/DQHoPChAIOT/",  # NUEVO
+    
     # Facebook
     "https://www.facebook.com/100064867445065/posts/1217384173767153/",
     "https://www.facebook.com/100064867445065/posts/1217383833767187/",
@@ -77,10 +80,22 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/?feed_demo_ad=120236325185800640&h=AQAtF24HPHNHakqWzd0",
     "https://www.facebook.com/?feed_demo_ad=120236325162820640&h=AQAYz3GDquTbbeIjmwI",
     "https://www.facebook.com/100064867445065/posts/1247791610726409/?dco_ad_token=Aapj_AgRyAFyvo58bReyXQGjyl3pjEyOg8MQNF6BORDzFYIihmO-xoWfuEuSa0rAHUoXymfIucjCZAaA&dco_ad_id=120237209483310640",
+    "https://www.facebook.com/100064867445065/posts/1243854187786818/",  # NUEVO
     #NUEVOS
     "https://www.facebook.com/reel/1177590664294662/",
     "https://www.facebook.com/reel/1370746317719068/",
     "https://www.facebook.com/reel/809881044994848/",
+
+    # Facebook Ads Preview - NUEVOS
+    "https://fb.me/adspreview/facebook/xyJOJX8PHYTM8oJ",
+    "https://fb.me/adspreview/managedaccount/2aRfHsDy89jxW93",
+    "https://fb.me/adspreview/facebook/1XSspjnNpZ7Xclk",
+    "https://fb.me/adspreview/managedaccount/1NLhcIvXPBnkxua",
+    "https://fb.me/adspreview/managedaccount/1WBSjxvvcydmg71",
+    "https://fb.me/adspreview/managedaccount/1PTTEWDqSBHrTp6",
+    "https://fb.me/adspreview/managedaccount/26jLT5hEl4ArwW4",
+    "https://fb.me/adspreview/managedaccount/282xllZSByJtLFi",
+    "https://fb.me/adspreview/managedaccount/1Xmb2M9HrnehjNO",
 
     # TikTok
     "https://www.tiktok.com/@MS4wLjABAAAAz0g6ilGOuqLdsyj6yj4S_laG21HJXjmypCSGqYY52fGrNTFvF0rbzfybfnxjrpxd/video/7549227541463043329",
@@ -333,6 +348,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
