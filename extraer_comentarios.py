@@ -60,6 +60,7 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DPjQx2gAK2t/",
     "https://www.instagram.com/p/DPy9BftAHKl/",
     "https://www.instagram.com/p/DPojcrxAM4H/",  # NUEVO
+    "https://www.instagram.com/p/DQrnhboAK1O/",
     #NUEVOS
     "https://www.instagram.com/p/DQHoasBAIfd/",
     "https://www.instagram.com/p/DQHoMgYALbI/",
@@ -85,6 +86,7 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/reel/1177590664294662/",
     "https://www.facebook.com/reel/1370746317719068/",
     "https://www.facebook.com/reel/809881044994848/",
+    "https://www.facebook.com/100064867445065/posts/1267673125404924/",
 
     # Facebook Ads Preview - NUEVOS
     "https://fb.me/adspreview/facebook/xyJOJX8PHYTM8oJ",
@@ -348,6 +350,7 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
+
 
 
 
