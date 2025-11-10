@@ -62,11 +62,11 @@ URLS_A_PROCESAR = [
     "https://www.instagram.com/p/DPjQx2gAK2t/",
     "https://www.instagram.com/p/DPy9BftAHKl/",
     "https://www.instagram.com/p/DPojcrxAM4H/",  # NUEVO
-    #NUEVOS
+    # NUEVOS
     "https://www.instagram.com/p/DQHoasBAIfd/",
     "https://www.instagram.com/p/DQHoMgYALbI/",
     "https://www.instagram.com/p/DQHoPChAIOT/",  # NUEVO
-    
+
     # Facebook
     "https://www.facebook.com/100064867445065/posts/1217384173767153/",
     "https://www.facebook.com/100064867445065/posts/1217383833767187/",
@@ -83,7 +83,7 @@ URLS_A_PROCESAR = [
     "https://www.facebook.com/?feed_demo_ad=120236325162820640&h=AQAYz3GDquTbbeIjmwI",
     "https://www.facebook.com/100064867445065/posts/1247791610726409/?dco_ad_token=Aapj_AgRyAFyvo58bReyXQGjyl3pjEyOg8MQNF6BORDzFYIihmO-xoWfuEuSa0rAHUoXymfIucjCZAaA&dco_ad_id=120237209483310640",
     "https://www.facebook.com/100064867445065/posts/1243854187786818/",  # NUEVO
-    #NUEVOS
+    # NUEVOS
     "https://www.facebook.com/reel/1177590664294662/",
     "https://www.facebook.com/reel/1370746317719068/",
     "https://www.facebook.com/reel/809881044994848/",
@@ -116,7 +116,6 @@ URLS_A_PROCESAR = [
     "https://www.tiktok.com/@alpinacol/video/7556666043746340112?_r=1&_t=ZS-90MGQkEa5xf",
     "https://www.tiktok.com/@alpinacol/video/7554519618174389512?_r=1&_t=ZS-90MGNDfj7qM",
     "https://www.tiktok.com/@alpinacol/video/7556666047076502785?_r=1&_t=ZS-90MGLX55n8M",
-    "https://www.tiktok.com/@alpinacol/video/7554519618174389512?_r=1&_t=ZS-90Y3FEZWIfX",
     "https://www.tiktok.com/@alpinacol/video/7558824662910782738?_r=1&_t=ZS-90Y3Ojc0EAZ",
     "https://www.tiktok.com/@alpinacol/video/7558824665163074834?_r=1&_t=ZS-90Y3RPVylPE",
     "https://www.tiktok.com/@alpinacol/video/7558824655524547841?_r=1&_t=ZS-90Y3ZvDjcrH",
@@ -127,10 +126,11 @@ URLS_A_PROCESAR = [
     "https://www.tiktok.com/@alpinacol/video/7558824657030302993?_r=1&_t=ZS-90Y3nvXXWOQ",
     "https://www.tiktok.com/@alpinacol/video/7558824664991010066?_r=1&_t=ZS-90Y3qQAvrGy",
     "https://www.tiktok.com/@alpinacol/video/7558824650868837648?_r=1&_t=ZS-90jgxZNxMiO",
-    #NUEVOS
+    # NUEVOS
     "https://vt.tiktok.com/ZSyJy8Kv2/",
     "https://vt.tiktok.com/ZSyJUsbVn/",
 
+    
 ]
 
 # INFORMACIÓN DE CAMPAÑA
@@ -317,14 +317,41 @@ class SocialMediaScraper:
 
 
 def normalize_url(url):
-    """Normaliza una URL para comparación consistente"""
+    """
+    Normaliza una URL para comparación consistente.
+    EXCEPCIÓN: Preserva feed_demo_ad para Facebook Ad Preview
+    """
     if pd.isna(url) or url == '':
         return ''
-    url = str(url).strip().lower()
+    
+    original_url = str(url).strip()
+    url_lower = original_url.lower()
+    
+    # CASO ESPECIAL: Facebook Ad Preview con feed_demo_ad
+    # Estos son anuncios diferentes y deben tratarse como URLs únicas
+    if 'facebook.com' in url_lower and 'feed_demo_ad=' in url_lower:
+        # Extraer solo el feed_demo_ad (es el identificador único)
+        import re
+        match = re.search(r'feed_demo_ad=(\d+)', url_lower)
+        if match:
+            ad_id = match.group(1)
+            return f"https://www.facebook.com/ad_preview/{ad_id}"
+    
+    # Normalización estándar
+    url = url_lower
+    
+    # Eliminar parámetros de query (excepto para casos especiales arriba)
     if '?' in url:
         url = url.split('?')[0]
+    
+    # Eliminar barra final
     if url.endswith('/'):
         url = url[:-1]
+    
+    # Eliminar fragmentos (#)
+    if '#' in url:
+        url = url.split('#')[0]
+    
     return url
 
 
@@ -434,24 +461,39 @@ def create_comment_id(row):
             return f"REGISTRY|NO_URL|{platform}"
         return f"REGISTRY|{normalized_url}"
     
+    # Platform
     platform = str(row['platform']) if 'platform' in row.index and pd.notna(row['platform']) else ''
     platform = platform.strip().lower()
     
-    author = str(row['author_name']) if 'author_name' in row.index and pd.notna(row['author_name']) else ''
-    author = author.strip().lower()
+    # Author - CORREGIDO: manejar NaN apropiadamente
+    author = ''
+    if 'author_name' in row.index and pd.notna(row['author_name']):
+        author = str(row['author_name']).strip().lower()
+        # Si después de convertir es 'nan', tratarlo como vacío
+        if author == 'nan':
+            author = ''
     
+    # Post URL - NUEVO: agregar URL al ID para mayor especificidad
+    post_url = ''
+    if 'post_url' in row.index and pd.notna(row['post_url']):
+        post_url = str(row['post_url']).strip().lower()
+    
+    # Text
     text = ''
     if 'comment_text' in row.index and pd.notna(row['comment_text']):
         text = str(row['comment_text']).strip().lower()
         text = unicodedata.normalize('NFC', text)
     
+    # Date - usar la fecha para diferenciar comentarios idénticos
     date_str = ''
     if 'created_time_processed' in row.index and pd.notna(row['created_time_processed']):
         date_str = str(row['created_time_processed'])
     elif 'created_time' in row.index and pd.notna(row['created_time']):
         date_str = str(row['created_time'])
     
-    unique_id = f"{platform}|{author}|{text}|{date_str}"
+    # MEJORADO: Incluir más información para evitar falsos duplicados
+    # Especialmente importante para comentarios cortos o emojis
+    unique_id = f"{platform}|{post_url}|{author}|{text}|{date_str}"
     return unique_id
 
 
@@ -622,7 +664,3 @@ def run_extraction():
 
 if __name__ == "__main__":
     run_extraction()
-
-
-
-
