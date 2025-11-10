@@ -38,7 +38,9 @@ def run_report_generation():
 
     unique_posts = pd.merge(all_unique_posts, comment_counts, on='post_url', how='left')
     
-    unique_posts['comment_count'].fillna(0, inplace=True)
+    # Fix FutureWarning - use proper pandas syntax
+    unique_posts = unique_posts.copy()
+    unique_posts['comment_count'] = unique_posts['comment_count'].fillna(0)
     unique_posts['comment_count'] = unique_posts['comment_count'].astype(int)
     
     unique_posts.sort_values(by='comment_count', ascending=False, inplace=True)
@@ -56,73 +58,76 @@ def run_report_generation():
     print("Analizando sentimientos y temas...")
     sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
     
-    df_comments['sentimiento'] = df_comments['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
+    df_comments['sentimiento'] = df_comments['comment_text'].apply(
+        lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(
+            sentiment_analyzer.predict(str(text)).output, "Neutro"
+        )
+    )
     
     def classify_topic(comment):
         comment_lower = str(comment).lower()
-    
-    # Críticas sobre uso de IA en publicidad
-    if re.search(r'\bia\b|inteligencia artificial|hecho con ia|us(an|aron) ia|comercial con ia|animaci[oó]n (con )?ia|prompts?|ia tan mala|p[aá]guen? (un )?animador(es)?|contraten (artistas|animadores|diseñadores)', comment_lower):
-        return 'Críticas sobre Uso de IA en Publicidad'
-    
-    # Preocupaciones sobre azúcar y salud
-    if re.search(r'az[uú]car|conservantes|colorantes|grasas trans|qu[ií]micos|procesad[oa]|saludable|no es recomendable|mucha az[uú]car|demasiada az[uú]car|alto en az[uú]car(es)?|nutrientes artificiales', comment_lower):
-        return 'Preocupaciones sobre Azúcar e Ingredientes'
-    
-    # Comparación con productos caseros/artesanales
-    if re.search(r'(hago|preparo|hacer|preparar) (yo|en casa|casero)|artesanal(mente)?|mejor (el|lo) (que|de) (uno|yo)|natural|sin empaque|leche (de|pura) vaca|recién ordeñ|cantina|b[uú]lgaros|k[eé]fir (casero|artesanal)', comment_lower):
-        return 'Preferencia por Productos Caseros/Artesanales'
-    
-    # Quejas sobre precios
-    if re.search(r'car[oa]s?|precio|costoso|cuesta|vale|tan car[oa]|demasiado car[oa]|muy car[oa]|no (me )?alcanza|cu[aá]nto (vale|cuesta)|economía colombiana|abusando', comment_lower):
-        return 'Quejas sobre Precios Altos'
-    
-    # Críticas sobre calidad del producto
-    if re.search(r'baj[oó] (la|su) calidad|calidad mala|mucha agua|aguad[oa]|no es (igual|lo mismo)|ya no es (igual|bueno)|product[oa] mal[oa]|pésimo producto|leche de mierda|qu[ií]mico', comment_lower):
-        return 'Críticas sobre Calidad del Producto'
-    
-    # Nostalgia / Referencias al pasado
-    if re.search(r'antes|en (mi|nuestra) [eé]poca|antiguamente|en ese tiempo|cuando (era|yo era)|extraño (los|la)|viejo|80 años|d[ií]as antiguos|leche en botella|años? 90', comment_lower):
-        return 'Nostalgia / Referencias al Pasado'
-    
-    # Escepticismo sobre autenticidad de testimonios
-    if re.search(r'mentir[oa]s?|pura mentira|no (se lo )?cre[eo]|embustero|no exist[ií]a|imposible|falso|muy viejo para|no (me lo )?creo', comment_lower):
-        return 'Escepticismo sobre Testimonios/Autenticidad'
-    
-    # Opiniones positivas sobre productos
-    if re.search(r'(me )?(encanta|gusta|amo)|delicioso|rico|excelente|bueno|mejor|espectacular|gran producto|linda historia|increíble|chevere|divino', comment_lower):
-        return 'Opiniones Positivas sobre Productos/Marca'
-    
-    # Críticas laborales / Empresariales
-    if re.search(r'explota|negreros|empleados?|paga(n)? (mal|terrible)|liquidaciones|cooperativas|despidieron|trabajador(es)?|empresa (que )?explota', comment_lower):
-        return 'Críticas Laborales / Condiciones de Trabajo'
-    
-    # Solicitudes de productos o información
-    if re.search(r'd[oó]nde (lo )?(venden|compro|consigo)|no se consigue|regalo|r[ée]gal[ae]me|cu[aá]nto vale|d[oó]nde (est[aá]|se cre[oó])|salu[dd]ame|quiero|dame', comment_lower):
-        return 'Solicitudes de Productos/Información'
-    
-    # Comentarios sobre campaña/creatividad/marketing
-    if re.search(r'marketing|publicidad|comercial|anuncio|campa[ñn]a|creatividad|estrategia|conexi[oó]n emocional|talento|equipo|cr[ée]ditos|animaci[oó]n|diseño', comment_lower):
-        return 'Comentarios sobre Campaña/Marketing'
-    
-    # Decepción con la marca
-    if re.search(r'decepc(i[oó]n|ionante)|me decepcion|se me cay[oó]|qu[eé] pena|qu[eé] l[aá]stima|vergüenza|asco|horrible|p[eé]simo|qu[eé] bajo|triste|tristeza', comment_lower):
-        return 'Decepción con la Marca'
-    
-    # Comparación con competencia
-    if re.search(r'mejor (la marca )?|alquer[ií]a|colanta|pureza|competencia|otra marca', comment_lower):
-        return 'Comparación con Competencia'
-    
-    # Apoyo a artistas/industria creativa
-    if re.search(r'apoyen? (a|la industria)|contraten (artistas|animadores)|pag(uen|ar) (artistas|animadores|diseñadores)|talento (local|colombiano)|industria (de la )?animaci[oó]n|desempleando', comment_lower):
-        return 'Llamados a Apoyar Artistas/Industria Creativa'
-    
-    # Spam, irrelevante, emojis solos
-    if re.search(r'am[eé]n|jaja|wifi|contrase[ñn]a|gog6|sticker|roblox|femboy|salome|bea\s|primero\b', comment_lower) or (len(comment_lower.split()) < 3 and not re.search(r'ia\b', comment_lower)):
-        return 'Fuera de Tema / Spam'
-    
-    return 'Otros'
-
+        
+        # Críticas sobre uso de IA en publicidad
+        if re.search(r'\bia\b|inteligencia artificial|hecho con ia|us(an|aron) ia|comercial con ia|animaci[oó]n (con )?ia|prompts?|ia tan mala|p[aá]guen? (un )?animador(es)?|contraten (artistas|animadores|diseñadores)', comment_lower):
+            return 'Críticas sobre Uso de IA en Publicidad'
+        
+        # Preocupaciones sobre azúcar y salud
+        if re.search(r'az[uú]car|conservantes|colorantes|grasas trans|qu[ií]micos|procesad[oa]|saludable|no es recomendable|mucha az[uú]car|demasiada az[uú]car|alto en az[uú]car(es)?|nutrientes artificiales', comment_lower):
+            return 'Preocupaciones sobre Azúcar e Ingredientes'
+        
+        # Comparación con productos caseros/artesanales
+        if re.search(r'(hago|preparo|hacer|preparar) (yo|en casa|casero)|artesanal(mente)?|mejor (el|lo) (que|de) (uno|yo)|natural|sin empaque|leche (de|pura) vaca|recién ordeñ|cantina|b[uú]lgaros|k[eé]fir (casero|artesanal)', comment_lower):
+            return 'Preferencia por Productos Caseros/Artesanales'
+        
+        # Quejas sobre precios
+        if re.search(r'car[oa]s?|precio|costoso|cuesta|vale|tan car[oa]|demasiado car[oa]|muy car[oa]|no (me )?alcanza|cu[aá]nto (vale|cuesta)|economía colombiana|abusando', comment_lower):
+            return 'Quejas sobre Precios Altos'
+        
+        # Críticas sobre calidad del producto
+        if re.search(r'baj[oó] (la|su) calidad|calidad mala|mucha agua|aguad[oa]|no es (igual|lo mismo)|ya no es (igual|bueno)|product[oa] mal[oa]|pésimo producto|leche de mierda|qu[ií]mico', comment_lower):
+            return 'Críticas sobre Calidad del Producto'
+        
+        # Nostalgia / Referencias al pasado
+        if re.search(r'antes|en (mi|nuestra) [eé]poca|antiguamente|en ese tiempo|cuando (era|yo era)|extraño (los|la)|viejo|80 años|d[ií]as antiguos|leche en botella|años? 90', comment_lower):
+            return 'Nostalgia / Referencias al Pasado'
+        
+        # Escepticismo sobre autenticidad de testimonios
+        if re.search(r'mentir[oa]s?|pura mentira|no (se lo )?cre[eo]|embustero|no exist[ií]a|imposible|falso|muy viejo para|no (me lo )?creo', comment_lower):
+            return 'Escepticismo sobre Testimonios/Autenticidad'
+        
+        # Opiniones positivas sobre productos
+        if re.search(r'(me )?(encanta|gusta|amo)|delicioso|rico|excelente|bueno|mejor|espectacular|gran producto|linda historia|increíble|chevere|divino', comment_lower):
+            return 'Opiniones Positivas sobre Productos/Marca'
+        
+        # Críticas laborales / Empresariales
+        if re.search(r'explota|negreros|empleados?|paga(n)? (mal|terrible)|liquidaciones|cooperativas|despidieron|trabajador(es)?|empresa (que )?explota', comment_lower):
+            return 'Críticas Laborales / Condiciones de Trabajo'
+        
+        # Solicitudes de productos o información
+        if re.search(r'd[oó]nde (lo )?(venden|compro|consigo)|no se consigue|regalo|r[ée]gal[ae]me|cu[aá]nto vale|d[oó]nde (est[aá]|se cre[oó])|salu[dd]ame|quiero|dame', comment_lower):
+            return 'Solicitudes de Productos/Información'
+        
+        # Comentarios sobre campaña/creatividad/marketing
+        if re.search(r'marketing|publicidad|comercial|anuncio|campa[ñn]a|creatividad|estrategia|conexi[oó]n emocional|talento|equipo|cr[ée]ditos|animaci[oó]n|diseño', comment_lower):
+            return 'Comentarios sobre Campaña/Marketing'
+        
+        # Decepción con la marca
+        if re.search(r'decepc(i[oó]n|ionante)|me decepcion|se me cay[oó]|qu[eé] pena|qu[eé] l[aá]stima|vergüenza|asco|horrible|p[eé]simo|qu[eé] bajo|triste|tristeza', comment_lower):
+            return 'Decepción con la Marca'
+        
+        # Comparación con competencia
+        if re.search(r'mejor (la marca )?|alquer[ií]a|colanta|pureza|competencia|otra marca', comment_lower):
+            return 'Comparación con Competencia'
+        
+        # Apoyo a artistas/industria creativa
+        if re.search(r'apoyen? (a|la industria)|contraten (artistas|animadores)|pag(uen|ar) (artistas|animadores|diseñadores)|talento (local|colombiano)|industria (de la )?animaci[oó]n|desempleando', comment_lower):
+            return 'Llamados a Apoyar Artistas/Industria Creativa'
+        
+        # Spam, irrelevante, emojis solos
+        if re.search(r'am[eé]n|jaja|wifi|contrase[ñn]a|gog6|sticker|roblox|femboy|salome|bea\s|primero\b', comment_lower) or (len(comment_lower.split()) < 3 and not re.search(r'ia\b', comment_lower)):
+            return 'Fuera de Tema / Spam'
+        
+        return 'Otros'
 
     df_comments['tema'] = df_comments['comment_text'].apply(classify_topic)
     print("Análisis completado.")
@@ -265,28 +270,15 @@ def run_report_generation():
                     const selectedPlatform = platformFilter.value;
                     const selectedTopic = topicFilter.value;
                     
-                    // Filtrar pautas por plataforma
                     let postsToShow = (selectedPlatform === 'Todas') ? allPostsData : allPostsData.filter(p => p.platform === selectedPlatform);
                     
-                    // NUEVO: Filtrar pautas por tema
-                    // Solo mostrar pautas que tienen comentarios del tema seleccionado
                     if (selectedTopic !== 'Todos') {{
-                        const urlsWithTopic = new Set(
-                            allData.filter(d => d.topic === selectedTopic).map(d => d.post_url)
-                        );
+                        const urlsWithTopic = new Set(allData.filter(d => d.topic === selectedTopic).map(d => d.post_url));
                         postsToShow = postsToShow.filter(p => urlsWithTopic.has(p.post_url));
-                        
-                        // Recalcular conteos de comentarios solo para el tema seleccionado
                         postsToShow = postsToShow.map(p => {{
                             const topicComments = allData.filter(d => d.post_url === p.post_url && d.topic === selectedTopic);
-                            return {{
-                                ...p,
-                                comment_count: topicComments.length,
-                                original_count: p.comment_count
-                            }};
+                            return {{ ...p, comment_count: topicComments.length, original_count: p.comment_count }};
                         }});
-                        
-                        // Re-ordenar por conteo de comentarios del tema
                         postsToShow.sort((a, b) => b.comment_count - a.comment_count);
                     }}
                     
@@ -301,18 +293,14 @@ def run_report_generation():
 
                     const totalPages = Math.ceil(postsToShow.length / POST_LINKS_PER_PAGE);
                     if (postLinksCurrentPage > totalPages) postLinksCurrentPage = 1;
-
                     const startIndex = (postLinksCurrentPage - 1) * POST_LINKS_PER_PAGE;
                     const paginatedPosts = postsToShow.slice(startIndex, startIndex + POST_LINKS_PER_PAGE);
 
                     let tableHTML = '<table><tr><th>Pauta</th><th>Comentarios';
-                    if (selectedTopic !== 'Todos') {{
-                        tableHTML += ' (Tema Seleccionado)';
-                    }}
+                    if (selectedTopic !== 'Todos') tableHTML += ' (Tema Seleccionado)';
                     tableHTML += '</th><th>Enlace</th></tr>';
                     
                     paginatedPosts.forEach(p => {{
-                        // Usar post_url_original para el link (o post_url como fallback)
                         const linkUrl = p.post_url_original || p.post_url;
                         tableHTML += `<tr><td>${{p.post_label}}</td><td><b>${{p.comment_count}}</b></td><td><a href="${{linkUrl}}" target="_blank">Ver Pauta</a></td></tr>`;
                     }});
@@ -320,7 +308,7 @@ def run_report_generation():
                     tableDiv.innerHTML = tableHTML;
 
                     if (totalPages > 1) {{
-                        paginationDiv.innerHTML = `<button id="prevPageBtn" ${{ (postLinksCurrentPage === 1) ? 'disabled' : '' }}>Anterior</button><span>Página ${{postLinksCurrentPage}} de ${{totalPages}}</span><button id="nextPageBtn" ${{ (postLinksCurrentPage === totalPages) ? 'disabled' : '' }}>Siguiente</button>`;
+                        paginationDiv.innerHTML = `<button id="prevPageBtn" ${{(postLinksCurrentPage === 1) ? 'disabled' : ''}}>Anterior</button><span>Página ${{postLinksCurrentPage}} de ${{totalPages}}</span><button id="nextPageBtn" ${{(postLinksCurrentPage === totalPages) ? 'disabled' : ''}}>Siguiente</button>`;
                         document.getElementById('prevPageBtn')?.addEventListener('click', () => {{ if (postLinksCurrentPage > 1) {{ postLinksCurrentPage--; updatePostLinks(); }} }});
                         document.getElementById('nextPageBtn')?.addEventListener('click', () => {{ if (postLinksCurrentPage < totalPages) {{ postLinksCurrentPage++; updatePostLinks(); }} }});
                     }}
@@ -333,11 +321,9 @@ def run_report_generation():
                     const selectedPost = postFilter.value;
                     const selectedTopic = topicFilter.value;
                     
-                    // Filtrar por fecha primero
                     let filteredData = allData.filter(d => d.date >= startFilter && d.date <= endFilter);
                     let postsToShow = allPostsData;
 
-                    // Filtrar por post específico
                     if (selectedPost !== 'Todas') {{
                         filteredData = filteredData.filter(d => d.post_url === selectedPost);
                         postsToShow = allPostsData.filter(p => p.post_url === selectedPost);
@@ -346,7 +332,6 @@ def run_report_generation():
                         postsToShow = allPostsData.filter(p => p.platform === selectedPlatform);
                     }}
 
-                    // NUEVO: Filtrar por tema
                     if (selectedTopic !== 'Todos') {{
                         filteredData = filteredData.filter(d => d.topic === selectedTopic);
                     }}
@@ -359,38 +344,19 @@ def run_report_generation():
                 const updateStats = (data, totalPosts) => {{
                     const total = data.length;
                     const sentiments = data.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}});
-                    const pos = sentiments['Positivo'] || 0;
-                    const neg = sentiments['Negativo'] || 0;
-                    const neu = sentiments['Neutro'] || 0;
-                    
+                    const pos = sentiments['Positivo'] || 0, neg = sentiments['Negativo'] || 0, neu = sentiments['Neutro'] || 0;
                     document.getElementById('stats-grid').innerHTML = `
-                        <div class="stat-card pautas">
-                            <div class="stat-number pautas-text">${{totalPosts}}</div>
-                            <div>Total Pautas</div>
-                        </div>
-                        <div class="stat-card total">
-                            <div class="stat-number total-text">${{total}}</div>
-                            <div>Total Comentarios</div>
-                        </div>
-                        <div class="stat-card positive">
-                            <div class="stat-number positive-text">${{pos}}</div>
-                            <div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div>
-                        </div>
-                        <div class="stat-card negative">
-                            <div class="stat-number negative-text">${{neg}}</div>
-                            <div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div>
-                        </div>
-                        <div class="stat-card neutral">
-                            <div class="stat-number neutral-text">${{neu}}</div>
-                            <div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div>
-                        </div>
+                        <div class="stat-card pautas"><div class="stat-number pautas-text">${{totalPosts}}</div><div>Total Pautas</div></div>
+                        <div class="stat-card total"><div class="stat-number total-text">${{total}}</div><div>Total Comentarios</div></div>
+                        <div class="stat-card positive"><div class="stat-number positive-text">${{pos}}</div><div>Positivos (${{(total > 0 ? (pos / total * 100) : 0).toFixed(1)}}%)</div></div>
+                        <div class="stat-card negative"><div class="stat-number negative-text">${{neg}}</div><div>Negativos (${{(total > 0 ? (neg / total * 100) : 0).toFixed(1)}}%)</div></div>
+                        <div class="stat-card neutral"><div class="stat-number neutral-text">${{neu}}</div><div>Neutros (${{(total > 0 ? (neu / total * 100) : 0).toFixed(1)}}%)</div></div>
                     `;
                 }};
                 
                 const updateCommentsList = (data) => {{
                     const dataToShow = (commentsSentimentFilter === 'Todos') ? data : data.filter(d => d.sentiment === commentsSentimentFilter);
                     dataToShow.sort((a, b) => b.date.localeCompare(a.date));
-
                     const controlsDiv = document.getElementById('comments-controls');
                     const listDiv = document.getElementById('comments-list');
                     const paginationDiv = document.getElementById('comments-pagination');
@@ -415,11 +381,10 @@ def run_report_generation():
 
                     const totalPages = Math.ceil(dataToShow.length / COMMENTS_PER_PAGE);
                     if (commentsCurrentPage > totalPages) commentsCurrentPage = 1;
-
                     const startIndex = (commentsCurrentPage - 1) * COMMENTS_PER_PAGE;
                     const paginatedComments = dataToShow.slice(startIndex, startIndex + COMMENTS_PER_PAGE);
-
                     const sentimentToCss = {{ 'Positivo': 'positive', 'Negativo': 'negative', 'Neutro': 'neutral' }};
+                    
                     let listHtml = '';
                     paginatedComments.forEach(d => {{
                         const escapedComment = d.comment.replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -435,7 +400,7 @@ def run_report_generation():
                     listDiv.innerHTML = listHtml;
 
                     if (totalPages > 1) {{
-                        paginationDiv.innerHTML = `<button id="prevCommentPageBtn" ${{ (commentsCurrentPage === 1) ? 'disabled' : '' }}>Anterior</button><span>Página ${{commentsCurrentPage}} de ${{totalPages}}</span><button id="nextCommentPageBtn" ${{ (commentsCurrentPage === totalPages) ? 'disabled' : '' }}>Siguiente</button>`;
+                        paginationDiv.innerHTML = `<button id="prevCommentPageBtn" ${{(commentsCurrentPage === 1) ? 'disabled' : ''}}>Anterior</button><span>Página ${{commentsCurrentPage}} de ${{totalPages}}</span><button id="nextCommentPageBtn" ${{(commentsCurrentPage === totalPages) ? 'disabled' : ''}}>Siguiente</button>`;
                         document.getElementById('prevCommentPageBtn')?.addEventListener('click', () => {{ if (commentsCurrentPage > 1) {{ commentsCurrentPage--; updateCommentsList(data); }} }});
                         document.getElementById('nextCommentPageBtn')?.addEventListener('click', () => {{ if (commentsCurrentPage < totalPages) {{ commentsCurrentPage++; updateCommentsList(data); }} }});
                     }}
@@ -469,7 +434,7 @@ def run_report_generation():
                     ]; 
                     charts.sentimentByTopic.update(); 
                     
-                    const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }} acc[day][curr.sentiment]++; return acc; }}, {{}}); 
+                    const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[day][curr.sentiment]++; return acc; }}, {{}}); 
                     const sortedDays = Object.keys(dailyCounts).sort(); 
                     charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }})); 
                     charts.daily.data.datasets = [ 
@@ -527,6 +492,7 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
 
 
 
