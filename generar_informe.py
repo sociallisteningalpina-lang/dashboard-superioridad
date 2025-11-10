@@ -123,6 +123,7 @@ def run_report_generation():
     
     return 'Otros'
 
+
     df_comments['tema'] = df_comments['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
@@ -526,5 +527,8 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
+
+
 
 
