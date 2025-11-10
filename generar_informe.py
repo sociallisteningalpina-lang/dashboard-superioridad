@@ -59,7 +59,7 @@ def run_report_generation():
     df_comments['sentimiento'] = df_comments['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
     
     def classify_topic(comment):
-    comment_lower = str(comment).lower()
+        comment_lower = str(comment).lower()
     
     # Críticas sobre uso de IA en publicidad
     if re.search(r'\bia\b|inteligencia artificial|hecho con ia|us(an|aron) ia|comercial con ia|animaci[oó]n (con )?ia|prompts?|ia tan mala|p[aá]guen? (un )?animador(es)?|contraten (artistas|animadores|diseñadores)', comment_lower):
@@ -526,4 +526,5 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
+
 
