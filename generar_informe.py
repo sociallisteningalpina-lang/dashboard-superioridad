@@ -22,22 +22,22 @@ def run_report_generation():
     df['created_time_processed'] = pd.to_datetime(df['created_time_processed'])
     df['created_time_colombia'] = df['created_time_processed'] - pd.Timedelta(hours=5)
 
+    # Asegurar que exista post_url_original (para archivos antiguos)
+    if 'post_url_original' not in df.columns:
+        print("⚠️  Nota: Creando post_url_original desde post_url")
+        df['post_url_original'] = df['post_url'].copy()
+
     # --- Lógica de listado de pautas ---
-    # 1. Obtenemos TODAS las pautas únicas ANTES de eliminar filas sin comentarios.
-    all_unique_posts = df[['post_url', 'platform']].drop_duplicates().copy()
+    all_unique_posts = df[['post_url', 'post_url_original', 'platform']].drop_duplicates(subset=['post_url']).copy()
     all_unique_posts.dropna(subset=['post_url'], inplace=True)
 
-    # 2. Ahora sí, creamos un DataFrame solo con los comentarios válidos para el análisis.
     df_comments = df.dropna(subset=['created_time_colombia', 'comment_text', 'post_url']).copy()
     df_comments.reset_index(drop=True, inplace=True)
 
-    # 3. Contamos los comentarios desde el DataFrame que solo tiene comentarios.
     comment_counts = df_comments.groupby('post_url').size().reset_index(name='comment_count')
 
-    # 4. Unimos la lista maestra de pautas con los conteos.
     unique_posts = pd.merge(all_unique_posts, comment_counts, on='post_url', how='left')
     
-    # 5. Rellenamos los NaN (pautas sin comentarios) con 0.
     unique_posts['comment_count'].fillna(0, inplace=True)
     unique_posts['comment_count'] = unique_posts['comment_count'].astype(int)
     
@@ -48,7 +48,6 @@ def run_report_generation():
     for index, row in unique_posts.iterrows():
         post_labels[row['post_url']] = f"Pauta {index + 1} ({row['platform']})"
     
-    # Aplicamos las etiquetas a nuestra lista completa de pautas y al DF de comentarios
     unique_posts['post_label'] = unique_posts['post_url'].map(post_labels)
     df_comments['post_label'] = df_comments['post_url'].map(post_labels)
     
@@ -57,77 +56,83 @@ def run_report_generation():
     print("Analizando sentimientos y temas...")
     sentiment_analyzer = create_analyzer(task="sentiment", lang="es")
     
-    # Realizamos los análisis sobre el DataFrame que solo contiene comentarios (df_comments)
     df_comments['sentimiento'] = df_comments['comment_text'].apply(lambda text: {"POS": "Positivo", "NEG": "Negativo", "NEU": "Neutro"}.get(sentiment_analyzer.predict(str(text)).output, "Neutro"))
     
-    # <<<--- FUNCIÓN DE CLASIFICACIÓN (sin cambios) ---<<<
-    
     def classify_topic(comment):
-        """
-        Clasifica un comentario en categorías más específicas basadas en una lista
-        extendida de temas y palabras clave.
-        """
-        comment_lower = str(comment).lower()
+    comment_lower = str(comment).lower()
     
-        # --- CATEGORÍAS DE CRÍTICA ---
+    # Críticas sobre uso de IA en publicidad
+    if re.search(r'\bia\b|inteligencia artificial|hecho con ia|us(an|aron) ia|comercial con ia|animaci[oó]n (con )?ia|prompts?|ia tan mala|p[aá]guen? (un )?animador(es)?|contraten (artistas|animadores|diseñadores)', comment_lower):
+        return 'Críticas sobre Uso de IA en Publicidad'
     
-        # 1. Crítica fuerte al uso de IA y falta de apoyo a artistas. Es el tema más recurrente.
-        if re.search(r'\bia\b|inteligencia artificial|animador|artista|diseñador|pagar|contratar|presupuesto|tacaños|ahorrar|flojera|pereza|barato', comment_lower):
-            return 'Crítica: Uso de IA / Falta de apoyo a artistas'
+    # Preocupaciones sobre azúcar y salud
+    if re.search(r'az[uú]car|conservantes|colorantes|grasas trans|qu[ií]micos|procesad[oa]|saludable|no es recomendable|mucha az[uú]car|demasiada az[uú]car|alto en az[uú]car(es)?|nutrientes artificiales', comment_lower):
+        return 'Preocupaciones sobre Azúcar e Ingredientes'
     
-        # 2. Crítica a la calidad, precio o ingredientes del producto.
-        if re.search(r'caro|azúcar|agua|calidad del producto|químico|artificial son los nutriente', comment_lower):
-            return 'Crítica: Calidad o Precio del Producto'
+    # Comparación con productos caseros/artesanales
+    if re.search(r'(hago|preparo|hacer|preparar) (yo|en casa|casero)|artesanal(mente)?|mejor (el|lo) (que|de) (uno|yo)|natural|sin empaque|leche (de|pura) vaca|recién ordeñ|cantina|b[uú]lgaros|k[eé]fir (casero|artesanal)', comment_lower):
+        return 'Preferencia por Productos Caseros/Artesanales'
     
-        # 3. Crítica a la veracidad del anuncio (ej. el del señor mayor).
-        if re.search(r'mentiroso|embustero|ese tiempo no existía|no avía esa marca|dudo mucho', comment_lower):
-            return 'Crítica: Contenido del Anuncio (Veracidad)'
+    # Quejas sobre precios
+    if re.search(r'car[oa]s?|precio|costoso|cuesta|vale|tan car[oa]|demasiado car[oa]|muy car[oa]|no (me )?alcanza|cu[aá]nto (vale|cuesta)|economía colombiana|abusando', comment_lower):
+        return 'Quejas sobre Precios Altos'
     
-        # 4. Mención directa a la competencia de forma comparativa o como alternativa.
-        if re.search(r'alquería|pureza|competencia', comment_lower):
-            return 'Mención a Competencia'
+    # Críticas sobre calidad del producto
+    if re.search(r'baj[oó] (la|su) calidad|calidad mala|mucha agua|aguad[oa]|no es (igual|lo mismo)|ya no es (igual|bueno)|product[oa] mal[oa]|pésimo producto|leche de mierda|qu[ií]mico', comment_lower):
+        return 'Críticas sobre Calidad del Producto'
     
-        # 5. Críticas sobre las prácticas laborales de la empresa.
-        if re.search(r'empleado|cooperativas|liquidaciones|negreros', comment_lower):
-            return 'Crítica: Prácticas Laborales'
+    # Nostalgia / Referencias al pasado
+    if re.search(r'antes|en (mi|nuestra) [eé]poca|antiguamente|en ese tiempo|cuando (era|yo era)|extraño (los|la)|viejo|80 años|d[ií]as antiguos|leche en botella|años? 90', comment_lower):
+        return 'Nostalgia / Referencias al Pasado'
     
-        # --- CATEGORÍAS POSITIVAS Y NEUTRAS ---
+    # Escepticismo sobre autenticidad de testimonios
+    if re.search(r'mentir[oa]s?|pura mentira|no (se lo )?cre[eo]|embustero|no exist[ií]a|imposible|falso|muy viejo para|no (me lo )?creo', comment_lower):
+        return 'Escepticismo sobre Testimonios/Autenticidad'
     
-        # 6. Comentarios positivos sobre la marca, la campaña o los productos.
-        if re.search(r'bonito|lindo|divino|me encanta|excelente|amo|deliciosa|gran producto|buenos', comment_lower):
-            return 'Comentario Positivo / Apoyo a la Marca'
+    # Opiniones positivas sobre productos
+    if re.search(r'(me )?(encanta|gusta|amo)|delicioso|rico|excelente|bueno|mejor|espectacular|gran producto|linda historia|increíble|chevere|divino', comment_lower):
+        return 'Opiniones Positivas sobre Productos/Marca'
     
-        # 7. Sugerencias o peticiones directas de productos.
-        if re.search(r'mochis|yox sin azúcar|vender sus productos', comment_lower):
-            return 'Sugerencia de Producto'
-            
-        # --- CATEGORÍAS DE BAJA INTERACCIÓN O SPAM ---
+    # Críticas laborales / Empresariales
+    if re.search(r'explota|negreros|empleados?|paga(n)? (mal|terrible)|liquidaciones|cooperativas|despidieron|trabajador(es)?|empresa (que )?explota', comment_lower):
+        return 'Críticas Laborales / Condiciones de Trabajo'
     
-        # 8. Detecta spam claro o comentarios irrelevantes.
-        if re.search(r'contraseña de cualquier red wi-fi|gog6', comment_lower):
-            return 'Spam'
+    # Solicitudes de productos o información
+    if re.search(r'd[oó]nde (lo )?(venden|compro|consigo)|no se consigue|regalo|r[ée]gal[ae]me|cu[aá]nto vale|d[oó]nde (est[aá]|se cre[oó])|salu[dd]ame|quiero|dame', comment_lower):
+        return 'Solicitudes de Productos/Información'
     
-        # 9. Comentarios muy cortos, emojis sueltos o saludos que no aportan un tema claro.
-        if len(comment.split()) < 3 and not re.search(r'[a-zA-Z]', comment_lower):
-            return 'Interacción General (Emojis/Corto)'
+    # Comentarios sobre campaña/creatividad/marketing
+    if re.search(r'marketing|publicidad|comercial|anuncio|campa[ñn]a|creatividad|estrategia|conexi[oó]n emocional|talento|equipo|cr[ée]ditos|animaci[oó]n|diseño', comment_lower):
+        return 'Comentarios sobre Campaña/Marketing'
     
-        # --- CATEGORÍA GENERAL ---
+    # Decepción con la marca
+    if re.search(r'decepc(i[oó]n|ionante)|me decepcion|se me cay[oó]|qu[eé] pena|qu[eé] l[aá]stima|vergüenza|asco|horrible|p[eé]simo|qu[eé] bajo|triste|tristeza', comment_lower):
+        return 'Decepción con la Marca'
     
-        # 10. Si no coincide con ninguna de las categorías anteriores.
-        return 'Otro'
-        
-    # <<<--- TERMINA LA NUEVA FUNCIÓN DE CLASIFICACIÓN ---<<<
+    # Comparación con competencia
+    if re.search(r'mejor (la marca )?|alquer[ií]a|colanta|pureza|competencia|otra marca', comment_lower):
+        return 'Comparación con Competencia'
+    
+    # Apoyo a artistas/industria creativa
+    if re.search(r'apoyen? (a|la industria)|contraten (artistas|animadores)|pag(uen|ar) (artistas|animadores|diseñadores)|talento (local|colombiano)|industria (de la )?animaci[oó]n|desempleando', comment_lower):
+        return 'Llamados a Apoyar Artistas/Industria Creativa'
+    
+    # Spam, irrelevante, emojis solos
+    if re.search(r'am[eé]n|jaja|wifi|contrase[ñn]a|gog6|sticker|roblox|femboy|salome|bea\s|primero\b', comment_lower) or (len(comment_lower.split()) < 3 and not re.search(r'ia\b', comment_lower)):
+        return 'Fuera de Tema / Spam'
+    
+    return 'Otros'
 
     df_comments['tema'] = df_comments['comment_text'].apply(classify_topic)
     print("Análisis completado.")
 
-    # Creamos el JSON para el dashboard desde df_comments
+    # Creamos el JSON para el dashboard
     df_for_json = df_comments[['created_time_colombia', 'comment_text', 'sentimiento', 'tema', 'platform', 'post_url', 'post_label']].copy()
     df_for_json.rename(columns={'created_time_colombia': 'date', 'comment_text': 'comment', 'sentimiento': 'sentiment', 'tema': 'topic'}, inplace=True)
     df_for_json['date'] = df_for_json['date'].dt.strftime('%Y-%m-%dT%H:%M:%S')
     all_data_json = json.dumps(df_for_json.to_dict('records'))
 
-    # Las fechas min/max se calculan desde df_comments
+    # Fechas min/max
     min_date = df_comments['created_time_colombia'].min().strftime('%Y-%m-%d') if not df_comments.empty else ''
     max_date = df_comments['created_time_colombia'].max().strftime('%Y-%m-%d') if not df_comments.empty else ''
     
@@ -192,6 +197,7 @@ def run_report_generation():
                     <label for="endDate">Fin:</label> <input type="date" id="endDate" value="{max_date}"> <input type="time" id="endTime" value="23:59">
                     <label for="platformFilter">Red Social:</label> <select id="platformFilter"><option value="Todas">Todas</option><option value="Facebook">Facebook</option><option value="Instagram">Instagram</option><option value="TikTok">TikTok</option></select>
                     <label for="postFilter">Pauta Específica:</label> <select id="postFilter">{post_filter_options}</select>
+                    <label for="topicFilter">Tema:</label> <select id="topicFilter"><option value="Todos">Todos los Temas</option></select>
                 </div>
             </div>
             
@@ -206,7 +212,7 @@ def run_report_generation():
             <div class="card charts-section">
                 <h2 class="section-title">Análisis General</h2>
                 <div class="charts-grid">
-                    <div class="chart-container"><canvas id="postCountChart"></canvas></div><div class="chart-container"><canvas id="sentimentChart"></canvas></div>
+                    <div class="chart-container"><canvas id="postCountChart"></canvas></div><div class="chart-container"><canvas id="sentimentChart"></canvas></div><div class="chart-container"><canvas id="topicsChart"></canvas></div>
                     <div class="chart-container full-width"><canvas id="sentimentByTopicChart"></canvas></div><div class="chart-container full-width"><canvas id="dailyChart"></canvas></div><div class="chart-container full-width"><canvas id="hourlyChart"></canvas></div>
                 </div>
             </div>
@@ -227,11 +233,22 @@ def run_report_generation():
                 const startDateInput = document.getElementById('startDate'), startTimeInput = document.getElementById('startTime');
                 const endDateInput = document.getElementById('endDate'), endTimeInput = document.getElementById('endTime');
                 const platformFilter = document.getElementById('platformFilter'), postFilter = document.getElementById('postFilter');
+                const topicFilter = document.getElementById('topicFilter');
+
+                // Inicializar filtro de temas con los temas únicos del dataset
+                const uniqueTopics = [...new Set(allData.map(d => d.topic))].sort();
+                uniqueTopics.forEach(topic => {{
+                    const option = document.createElement('option');
+                    option.value = topic;
+                    option.textContent = topic;
+                    topicFilter.appendChild(option);
+                }});
 
                 const charts = {{}};
                 Object.assign(charts, {{
                     postCount: new Chart(document.getElementById('postCountChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Pautas por Red Social' }} }} }} }}),
                     sentiment: new Chart(document.getElementById('sentimentChart'), {{ type: 'doughnut', options: {{ responsive: true, maintainAspectRatio: false, plugins: {{ title: {{ display: true, text: 'Distribución de Sentimientos' }} }} }} }}),
+                    topics: new Chart(document.getElementById('topicsChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: {{ legend: {{ display: false }}, title: {{ display: true, text: 'Temas Principales' }} }} }} }}),
                     sentimentByTopic: new Chart(document.getElementById('sentimentByTopicChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Sentimiento por Tema' }} }} }} }}),
                     daily: new Chart(document.getElementById('dailyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Día' }} }} }} }}),
                     hourly: new Chart(document.getElementById('hourlyChart'), {{ type: 'bar', options: {{ responsive: true, maintainAspectRatio: false, scales: {{ x: {{ stacked: true }}, y: {{ stacked: true, position: 'left', title: {{ display: true, text: 'Comentarios por Hora' }} }}, y1: {{ position: 'right', grid: {{ drawOnChartArea: false }}, title: {{ display: true, text: 'Total Acumulado' }} }} }}, plugins: {{ title: {{ display: true, text: 'Volumen de Comentarios por Hora' }} }} }} }})
@@ -245,12 +262,41 @@ def run_report_generation():
 
                 const updatePostLinks = () => {{
                     const selectedPlatform = platformFilter.value;
-                    const postsToShow = (selectedPlatform === 'Todas') ? allPostsData : allPostsData.filter(p => p.platform === selectedPlatform);
+                    const selectedTopic = topicFilter.value;
+                    
+                    // Filtrar pautas por plataforma
+                    let postsToShow = (selectedPlatform === 'Todas') ? allPostsData : allPostsData.filter(p => p.platform === selectedPlatform);
+                    
+                    // NUEVO: Filtrar pautas por tema
+                    // Solo mostrar pautas que tienen comentarios del tema seleccionado
+                    if (selectedTopic !== 'Todos') {{
+                        const urlsWithTopic = new Set(
+                            allData.filter(d => d.topic === selectedTopic).map(d => d.post_url)
+                        );
+                        postsToShow = postsToShow.filter(p => urlsWithTopic.has(p.post_url));
+                        
+                        // Recalcular conteos de comentarios solo para el tema seleccionado
+                        postsToShow = postsToShow.map(p => {{
+                            const topicComments = allData.filter(d => d.post_url === p.post_url && d.topic === selectedTopic);
+                            return {{
+                                ...p,
+                                comment_count: topicComments.length,
+                                original_count: p.comment_count
+                            }};
+                        }});
+                        
+                        // Re-ordenar por conteo de comentarios del tema
+                        postsToShow.sort((a, b) => b.comment_count - a.comment_count);
+                    }}
                     
                     const tableDiv = document.getElementById('post-links-table');
                     const paginationDiv = document.getElementById('post-links-pagination');
                     tableDiv.innerHTML = ''; paginationDiv.innerHTML = '';
-                    if (postsToShow.length === 0) return;
+                    
+                    if (postsToShow.length === 0) {{
+                        tableDiv.innerHTML = "<p style='text-align:center; padding:20px;'>No hay pautas con comentarios del tema seleccionado.</p>";
+                        return;
+                    }}
 
                     const totalPages = Math.ceil(postsToShow.length / POST_LINKS_PER_PAGE);
                     if (postLinksCurrentPage > totalPages) postLinksCurrentPage = 1;
@@ -258,9 +304,16 @@ def run_report_generation():
                     const startIndex = (postLinksCurrentPage - 1) * POST_LINKS_PER_PAGE;
                     const paginatedPosts = postsToShow.slice(startIndex, startIndex + POST_LINKS_PER_PAGE);
 
-                    let tableHTML = '<table><tr><th>Pauta</th><th>Total Comentarios</th><th>Enlace</th></tr>';
+                    let tableHTML = '<table><tr><th>Pauta</th><th>Comentarios';
+                    if (selectedTopic !== 'Todos') {{
+                        tableHTML += ' (Tema Seleccionado)';
+                    }}
+                    tableHTML += '</th><th>Enlace</th></tr>';
+                    
                     paginatedPosts.forEach(p => {{
-                        tableHTML += `<tr><td>${{p.post_label}}</td><td><b>${{p.comment_count}}</b></td><td><a href="${{p.post_url}}" target="_blank">Ver Pauta</a></td></tr>`;
+                        // Usar post_url_original para el link (o post_url como fallback)
+                        const linkUrl = p.post_url_original || p.post_url;
+                        tableHTML += `<tr><td>${{p.post_label}}</td><td><b>${{p.comment_count}}</b></td><td><a href="${{linkUrl}}" target="_blank">Ver Pauta</a></td></tr>`;
                     }});
                     tableHTML += '</table>';
                     tableDiv.innerHTML = tableHTML;
@@ -277,16 +330,24 @@ def run_report_generation():
                     const endFilter = `${{endDateInput.value}}T${{endTimeInput.value}}:59`;
                     const selectedPlatform = platformFilter.value;
                     const selectedPost = postFilter.value;
+                    const selectedTopic = topicFilter.value;
                     
+                    // Filtrar por fecha primero
                     let filteredData = allData.filter(d => d.date >= startFilter && d.date <= endFilter);
-                    let postsToShow = allPostsData; 
+                    let postsToShow = allPostsData;
 
+                    // Filtrar por post específico
                     if (selectedPost !== 'Todas') {{
                         filteredData = filteredData.filter(d => d.post_url === selectedPost);
                         postsToShow = allPostsData.filter(p => p.post_url === selectedPost);
                     }} else if (selectedPlatform !== 'Todas') {{
                         filteredData = filteredData.filter(d => d.platform === selectedPlatform);
                         postsToShow = allPostsData.filter(p => p.platform === selectedPlatform);
+                    }}
+
+                    // NUEVO: Filtrar por tema
+                    if (selectedTopic !== 'Todos') {{
+                        filteredData = filteredData.filter(d => d.topic === selectedTopic);
                     }}
                     
                     updateStats(filteredData, postsToShow.length);
@@ -380,16 +441,74 @@ def run_report_generation():
                 }};
 
                 const updateCharts = (postsData, filteredData) => {{ 
-                    const postCounts = postsData.reduce((acc, curr) => {{ acc[curr.platform] = (acc[curr.platform] || 0) + 1; return acc; }}, {{}}); const postCountLabels = Object.keys(postCounts); charts.postCount.data.labels = postCountLabels; charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p]), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}]; charts.postCount.update(); 
-                    const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro']; charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}]; charts.sentiment.update(); const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}}); const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro)); charts.sentimentByTopic.data.labels = sbtLabels; charts.sentimentByTopic.data.datasets = [ {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} ]; charts.sentimentByTopic.update(); const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }} acc[day][curr.sentiment]++; return acc; }}, {{}}); const sortedDays = Object.keys(dailyCounts).sort(); charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }})); charts.daily.data.datasets = [ {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} ]; charts.daily.update(); const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}}); const sortedHours = Object.keys(hourlyCounts).sort(); let cumulative = 0; const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }}); charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }})); charts.hourly.data.datasets = [ {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} ]; charts.hourly.update(); 
+                    const postCounts = postsData.reduce((acc, curr) => {{ acc[curr.platform] = (acc[curr.platform] || 0) + 1; return acc; }}, {{}}); 
+                    const postCountLabels = Object.keys(postCounts); 
+                    charts.postCount.data.labels = postCountLabels; 
+                    charts.postCount.data.datasets = [{{ data: postCountLabels.map(p => postCounts[p]), backgroundColor: ['#007bff', '#6f42c1', '#dc3545', '#ffc107', '#28a745'] }}]; 
+                    charts.postCount.update(); 
+                    
+                    const sentimentCounts = filteredData.reduce((acc, curr) => {{ acc[curr.sentiment] = (acc[curr.sentiment] || 0) + 1; return acc; }}, {{}}); 
+                    charts.sentiment.data.labels = ['Positivo', 'Negativo', 'Neutro']; 
+                    charts.sentiment.data.datasets = [{{ data: [sentimentCounts['Positivo']||0, sentimentCounts['Negativo']||0, sentimentCounts['Neutro']||0], backgroundColor: ['#28a745', '#dc3545', '#ffc107'] }}]; 
+                    charts.sentiment.update(); 
+                    
+                    const topicCounts = filteredData.reduce((acc, curr) => {{ acc[curr.topic] = (acc[curr.topic] || 0) + 1; return acc; }}, {{}}); 
+                    const sortedTopics = Object.entries(topicCounts).sort((a, b) => b[1] - a[1]); 
+                    charts.topics.data.labels = sortedTopics.map(d => d[0]); 
+                    charts.topics.data.datasets = [{{ label: 'Comentarios', data: sortedTopics.map(d => d[1]), backgroundColor: '#3498db' }}]; 
+                    charts.topics.update(); 
+                    
+                    const sbtCounts = filteredData.reduce((acc, curr) => {{ if (!acc[curr.topic]) acc[curr.topic] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; acc[curr.topic][curr.sentiment]++; return acc; }}, {{}}); 
+                    const sbtLabels = Object.keys(sbtCounts).sort((a,b) => (sbtCounts[b].Positivo + sbtCounts[b].Negativo + sbtCounts[b].Neutro) - (sbtCounts[a].Positivo + sbtCounts[a].Negativo + sbtCounts[a].Neutro)); 
+                    charts.sentimentByTopic.data.labels = sbtLabels; 
+                    charts.sentimentByTopic.data.datasets = [ 
+                        {{ label: 'Positivo', data: sbtLabels.map(l => sbtCounts[l].Positivo), backgroundColor: '#28a745' }}, 
+                        {{ label: 'Negativo', data: sbtLabels.map(l => sbtCounts[l].Negativo), backgroundColor: '#dc3545' }}, 
+                        {{ label: 'Neutro', data: sbtLabels.map(l => sbtCounts[l].Neutro), backgroundColor: '#ffc107' }} 
+                    ]; 
+                    charts.sentimentByTopic.update(); 
+                    
+                    const dailyCounts = filteredData.reduce((acc, curr) => {{ const day = curr.date.substring(0, 10); if (!acc[day]) {{ acc[day] = {{ Positivo: 0, Negativo: 0, Neutro: 0 }}; }} acc[day][curr.sentiment]++; return acc; }}, {{}}); 
+                    const sortedDays = Object.keys(dailyCounts).sort(); 
+                    charts.daily.data.labels = sortedDays.map(d => new Date(d+'T00:00:00').toLocaleDateString('es-CO', {{ year: 'numeric', month: 'short', day: 'numeric' }})); 
+                    charts.daily.data.datasets = [ 
+                        {{ label: 'Positivo', data: sortedDays.map(d => dailyCounts[d].Positivo), backgroundColor: '#28a745' }}, 
+                        {{ label: 'Negativo', data: sortedDays.map(d => dailyCounts[d].Negativo), backgroundColor: '#dc3545' }}, 
+                        {{ label: 'Neutro', data: sortedDays.map(d => dailyCounts[d].Neutro), backgroundColor: '#ffc107' }} 
+                    ]; 
+                    charts.daily.update(); 
+                    
+                    const hourlyCounts = filteredData.reduce((acc, curr) => {{ const hour = curr.date.substring(0, 13) + ':00:00'; if (!acc[hour]) acc[hour] = {{ Positivo: 0, Negativo: 0, Neutro: 0, Total: 0 }}; acc[hour][curr.sentiment]++; acc[hour].Total++; return acc; }}, {{}}); 
+                    const sortedHours = Object.keys(hourlyCounts).sort(); 
+                    let cumulative = 0; 
+                    const cumulativeData = sortedHours.map(h => {{ cumulative += hourlyCounts[h].Total; return cumulative; }}); 
+                    charts.hourly.data.labels = sortedHours.map(h => new Date(h).toLocaleString('es-CO', {{ day: '2-digit', month: 'short', hour: '2-digit', minute:'2-digit' }})); 
+                    charts.hourly.data.datasets = [ 
+                        {{ label: 'Positivo', data: sortedHours.map(h => hourlyCounts[h].Positivo), backgroundColor: '#28a745', yAxisID: 'y' }}, 
+                        {{ label: 'Negativo', data: sortedHours.map(h => hourlyCounts[h].Negativo), backgroundColor: '#dc3545', yAxisID: 'y' }}, 
+                        {{ label: 'Neutro', data: sortedHours.map(h => hourlyCounts[h].Neutro), backgroundColor: '#ffc107', yAxisID: 'y' }}, 
+                        {{ label: 'Acumulado', type: 'line', data: cumulativeData, borderColor: '#007bff', yAxisID: 'y1' }} 
+                    ]; 
+                    charts.hourly.update(); 
                 }};
                 
-                const updatePostFilterOptions = () => {{ const selectedPlatform = platformFilter.value; const currentPostSelection = postFilter.value; let postsToShow = (selectedPlatform === 'Todas') ? allPostsData : allPostsData.filter(p => p.platform === selectedPlatform); postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>'; postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.post_url}}">${{p.post_label}}</option>`; }}); if (postsToShow.some(p => p.post_url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} else {{ postFilter.value = 'Todas'; }} }};
+                const updatePostFilterOptions = () => {{ 
+                    const selectedPlatform = platformFilter.value; 
+                    const currentPostSelection = postFilter.value; 
+                    let postsToShow = (selectedPlatform === 'Todas') ? allPostsData : allPostsData.filter(p => p.platform === selectedPlatform); 
+                    postFilter.innerHTML = '<option value="Todas">Ver Todas las Pautas</option>'; 
+                    postsToShow.forEach(p => {{ postFilter.innerHTML += `<option value="${{p.post_url}}">${{p.post_label}}</option>`; }}); 
+                    if (postsToShow.some(p => p.post_url === currentPostSelection)) {{ postFilter.value = currentPostSelection; }} 
+                    else {{ postFilter.value = 'Todas'; }} 
+                }};
 
                 platformFilter.addEventListener('change', () => {{ updatePostFilterOptions(); postLinksCurrentPage = 1; updatePostLinks(); updateDashboard(); }});
                 postFilter.addEventListener('change', updateDashboard);
-                startDateInput.addEventListener('change', updateDashboard); startTimeInput.addEventListener('change', updateDashboard);
-                endDateInput.addEventListener('change', updateDashboard); endTimeInput.addEventListener('change', updateDashboard);
+                topicFilter.addEventListener('change', () => {{ postLinksCurrentPage = 1; updatePostLinks(); updateDashboard(); }});
+                startDateInput.addEventListener('change', updateDashboard); 
+                startTimeInput.addEventListener('change', updateDashboard);
+                endDateInput.addEventListener('change', updateDashboard); 
+                endTimeInput.addEventListener('change', updateDashboard);
                 
                 updatePostLinks();
                 updateDashboard();
@@ -407,5 +526,4 @@ def run_report_generation():
 
 if __name__ == "__main__":
     run_report_generation()
-
 
